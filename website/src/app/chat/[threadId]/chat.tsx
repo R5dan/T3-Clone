@@ -22,11 +22,11 @@ export type State = {
     role: "user" | "assistant";
     content: [
       {
-          role: "text",
-          content: string,
-        },
-        { role: "image", image: string },
-        { role: "file", file: string },
+        type: "text";
+        text: string;
+      },
+      { type: "image"; image: string },
+      { type: "file"; data: string },
     ];
   };
   response: {
@@ -35,7 +35,7 @@ export type State = {
       {
         type: "text";
         content: string;
-      }
+      },
     ];
   } | null;
   reasoning: string | null;
@@ -70,7 +70,9 @@ const chatSchema = z.object({
 export function Page(props: { threadId: string }) {
   const { threadId } = props;
   const { user, loading } = useAuth();
-  const convexUser = useQuery(api.utils.getUserFromWorkOS, { userId: user?.id ?? null });
+  const convexUser = useQuery(api.utils.getUserFromWorkOS, {
+    userId: user?.id ?? null,
+  });
   const [inputMessage, setInputMessage] = useState("");
   const [newMessage, setNewMessage] = useReducer<State | null, [Action]>(
     (state, action) => {
@@ -79,11 +81,8 @@ export function Page(props: { threadId: string }) {
           prompt: [
             {
               role: "user",
-              content: {
-                type: "text",
-                content: action.prompt,
-              },
-            }
+              content: action.prompt,
+            },
           ],
           response: null,
           reasoning: null,
@@ -179,7 +178,6 @@ export function Page(props: { threadId: string }) {
     return <div>Error: No thread</div>;
   }
 
-
   console.log("END STATES");
   // if (loading) {
   //   return <div>Loading...</div>;
@@ -224,7 +222,7 @@ export function Page(props: { threadId: string }) {
           message: messageToSend,
           tools: {},
           model: model,
-          files: files.map((file) => file.id)
+          files: files.map((file) => file.id),
         }),
       });
       if (res.status !== 200) {
@@ -281,7 +279,9 @@ export function Page(props: { threadId: string }) {
           </div>
           {/* Model Selector */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Model:</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Model:
+            </span>
             <CompactModelSelector
               selectedModel={model}
               onModelSelect={setModel}
@@ -299,8 +299,8 @@ export function Page(props: { threadId: string }) {
         <div className="flex-1 overflow-hidden">
           {threadId ? (
             <Suspense>
-              <Thread 
-                threadId={threadId} 
+              <Thread
+                threadId={threadId}
                 state={newMessage}
                 selectedModel={model}
                 onModelSelect={setModel}
@@ -317,16 +317,18 @@ export function Page(props: { threadId: string }) {
         <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="mx-auto max-w-3xl">
             {/* Model Selector in Input Area */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Model:</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Model:
+                </span>
                 <CompactModelSelector
                   selectedModel={model}
                   onModelSelect={setModel}
                 />
               </div>
             </div>
-            
+
             <UploadDropzone setFiles={setFiles} files={files} />
             <div className="flex items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-900">
               <UploadButton setFiles={setFiles} files={files} />

@@ -18,8 +18,26 @@ import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { CompactModelSelector } from "~/components/ui/compact-model-selector";
 
 export type State = {
-  prompt: string;
-  response: string | null;
+  prompt: {
+    role: "user" | "assistant";
+    content: [
+      {
+          role: "text",
+          content: string,
+        },
+        { role: "image", image: string },
+        { role: "file", file: string },
+    ];
+  };
+  response: {
+    role: "assistant";
+    content: [
+      {
+        type: "text";
+        content: string;
+      }
+    ];
+  } | null;
   reasoning: string | null;
   sender: string;
 };
@@ -58,7 +76,15 @@ export function Page(props: { threadId: string }) {
     (state, action) => {
       if (action.type === "prompt") {
         return {
-          prompt: action.prompt,
+          prompt: [
+            {
+              role: "user",
+              content: {
+                type: "text",
+                content: action.prompt,
+              },
+            }
+          ],
           response: null,
           reasoning: null,
           sender: action.sender,

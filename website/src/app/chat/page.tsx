@@ -132,7 +132,7 @@ export default function Page() {
     // Clean up the link tag when the component unmounts or theme changes
     return () => {
       if (document.getElementById("hljs-theme-link")) {
-        document.getElementById("hljs-theme-link").remove();
+        document.getElementById("hljs-theme-link")?.remove();
       }
     };
   }, [theme]);

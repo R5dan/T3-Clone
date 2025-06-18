@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useAuth } from "@workos-inc/authkit-nextjs";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { 
   Star, 
   StarOff, 
@@ -18,7 +18,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { MODELS, FREE_MODELS } from "~/server/chat/models";
-import type { MODEL_IDS } from "~/server/chat/types";
+import type { MODEL, MODEL_IDS } from "~/server/chat/types";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -70,7 +70,7 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
   const [favourites, setFavourites] = useState<MODEL_IDS[]>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("model-favourites");
-      return stored ? JSON.parse(stored) : ["openrouter/auto", "deepseek/deepseek-r1-0528:free"];
+      return (stored ? JSON.parse(stored) : ["openrouter/auto", "deepseek/deepseek-r1-0528:free"]) as MODEL_IDS[];
     }
     return ["openrouter/auto", "deepseek/deepseek-r1-0528:free"];
   });
@@ -92,14 +92,14 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
   };
 
   // Check if model is free
-  const isFreeModel = (modelId: string) => {
-    return FREE_MODELS.includes(modelId as any) || modelId.endsWith(":free");
+  const isFreeModel = (modelId: MODEL_IDS) => {
+    return FREE_MODELS.includes(modelId) || modelId.endsWith(":free");
   };
 
   // Check if user can use non-free model
-  const canUseModel = (modelId: string) => {
+  const canUseModel = (modelId: MODEL_IDS) => {
     if (isFreeModel(modelId)) return true;
-    return user && user.metadata?.openRouterKey;
+    return !!(user?.metadata?.openRouterKey);
   };
 
   // Filter models based on search query
@@ -108,7 +108,7 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
     return MODELS.filter(model => 
       model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       model.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (model as any).company?.toLowerCase().includes(searchQuery.toLowerCase())
+      model.id.split("/")[0]?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery]);
 
@@ -149,7 +149,7 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
   };
 
   // Get capability badges
-  const getCapabilityBadges = (model: any) => {
+  const getCapabilityBadges = (model: MODEL) => {
     const badges = [];
     
     if (model.architecture.input_modalities.includes("image")) {
@@ -169,8 +169,8 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
   };
 
   // Model card component
-  const ModelCard = ({ model, showFavourite = true }: { model: any; showFavourite?: boolean }) => {
-    const isFavourite = favourites.includes(model.id as MODEL_IDS);
+  const ModelCard = ({ model, showFavourite = true }: { model: MODEL; showFavourite?: boolean }) => {
+    const isFavourite = favourites.includes(model.id);
     const canUse = canUseModel(model.id);
     const providerName = getProviderName(model.id);
     const capabilityBadges = getCapabilityBadges(model);
@@ -180,13 +180,13 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
         className={`cursor-pointer transition-all hover:shadow-md ${
           selectedModel === model.id ? "ring-2 ring-blue-500" : ""
         } ${!canUse ? "opacity-50" : ""}`}
-        onClick={() => canUse && onModelSelect(model.id as MODEL_IDS)}
+        onClick={() => canUse && onModelSelect(model.id)}
       >
         <CardContent className="p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
-                {getProviderIcon(providerName) || <div className="w-4 h-4 bg-gray-400 rounded" />}
+                {providerName ? getProviderIcon(providerName) : <div className="w-4 h-4 bg-gray-400 rounded" />}
                 <h4 className="font-medium text-sm truncate">{model.name}</h4>
                 {!canUse && <Lock className="w-3 h-3 text-gray-500" />}
                 {isFreeModel(model.id) && (
@@ -215,7 +215,7 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
                 className="h-6 w-6 ml-2"
                 onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
-                  toggleFavourite(model.id as MODEL_IDS);
+                  toggleFavourite(model.id);
                 }}
               >
                 {isFavourite ? <Star className="w-4 h-4 fill-yellow-400" /> : <StarOff className="w-4 h-4" />}
@@ -232,18 +232,24 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
   }
 
   return (
-    <div className={`w-full max-w-4xl mx-auto ${className}`}>
+    <div className={`mx-auto w-full max-w-4xl ${className}`}>
       {/* Tab Navigation */}
-      <div className="flex border-b mb-4">
-        {[
-          { id: "favourites", label: "Favourites", count: favouriteModels.length },
-          { id: "more", label: "More", count: popularModels.length },
-          { id: "all", label: "All", count: filteredModels.length }
-        ].map((tab) => (
+      <div className="mb-4 flex border-b">
+        {(
+          [
+            {
+              id: "favourites",
+              label: "Favourites",
+              count: favouriteModels.length,
+            },
+            { id: "more", label: "More", count: popularModels.length },
+            { id: "all", label: "All", count: filteredModels.length },
+          ] as const
+        ).map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            onClick={() => setActiveTab(tab.id)}
+            className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700"
@@ -257,11 +263,13 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
       {/* Search Bar */}
       <div className="mb-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
           <Input
             placeholder="Search models..."
             value={searchQuery}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setSearchQuery(e.target.value)
+            }
             className="pl-10"
           />
         </div>
@@ -271,14 +279,15 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
       <ScrollArea className="h-[600px]">
         {activeTab === "favourites" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {favouriteModels.map((model) => (
                 <ModelCard key={model.id} model={model} />
               ))}
             </div>
             {favouriteModels.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No favourite models yet. Add some from the "More" or "All" tabs!
+              <div className="py-8 text-center text-gray-500">
+                No favourite models yet. Add some from the &quot;More&quot; or
+                &quot;All&quot; tabs!
               </div>
             )}
           </div>
@@ -286,7 +295,7 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
 
         {activeTab === "more" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {popularModels.map((model) => (
                 <ModelCard key={model.id} model={model} />
               ))}
@@ -299,8 +308,8 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
             {/* Custom Model Input */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Plus className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Plus className="h-5 w-5" />
                   Custom Model
                 </CardTitle>
               </CardHeader>
@@ -310,15 +319,19 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
                     <Input
                       placeholder="Enter model ID (e.g., openai/gpt-4)"
                       value={customModelId}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomModelId(e.target.value)}
-                      onKeyPress={(e: React.KeyboardEvent) => e.key === "Enter" && handleCustomModelSelect()}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setCustomModelId(e.target.value)
+                      }
+                      onKeyPress={(e: React.KeyboardEvent) =>
+                        e.key === "Enter" && handleCustomModelSelect()
+                      }
                     />
                     <div className="flex gap-2">
                       <Button onClick={handleCustomModelSelect} size="sm">
                         Add Model
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => {
                           setShowCustomInput(false);
@@ -330,12 +343,12 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
                     </div>
                   </div>
                 ) : (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setShowCustomInput(true)}
                     className="w-full"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="mr-2 h-4 w-4" />
                     Add Custom Model
                   </Button>
                 )}
@@ -343,14 +356,14 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
             </Card>
 
             {/* All Models */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredModels.map((model) => (
                 <ModelCard key={model.id} model={model} />
               ))}
             </div>
-            
+
             {filteredModels.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="py-8 text-center text-gray-500">
                 No models found matching your search.
               </div>
             )}
@@ -360,11 +373,12 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
 
       {/* Authentication Notice */}
       {!user && (
-        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
           <div className="flex items-center gap-2 text-yellow-800">
-            <Lock className="w-4 h-4" />
+            <Lock className="h-4 w-4" />
             <span className="text-sm">
-              Sign in to use premium models. Free models are available without authentication.
+              Sign in to use premium models. Free models are available without
+              authentication.
             </span>
           </div>
         </div>

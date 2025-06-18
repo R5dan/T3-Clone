@@ -144,5 +144,5 @@ export const DEFAULT_PROVIDER_ICON = (
 
 // Helper function to get provider icon
 export const getProviderIcon = (providerName: string): React.ReactNode => {
-  return PROVIDER_ICONS[providerName.toLowerCase()] || DEFAULT_PROVIDER_ICON;
+  return PROVIDER_ICONS[providerName.toLowerCase()] ?? DEFAULT_PROVIDER_ICON;
 }; 

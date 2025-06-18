@@ -8,6 +8,7 @@ import { EmbeddedThread } from "./EmbeddedThread";
 import { ThemeToggle } from "~/components/theme-toggle";
 import { CompactModelSelector } from "~/components/ui/compact-model-selector";
 import type { MODEL_IDS } from "~/server/chat/types";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
 export function Thread(props: { 
   threadId: string; 
@@ -17,7 +18,7 @@ export function Thread(props: {
 }) {
   const { threadId, state, selectedModel, onModelSelect } = props;
   console.log("THREAD ID:" + threadId);
-  const thread = useQuery(api.thread.getThread, { threadId });
+  const thread = useQuery(api.thread.getThread, { threadId } as { threadId: Id<"threads">});
   if (!thread) {
     return <div></div>
   } else if (thread instanceof Error) {

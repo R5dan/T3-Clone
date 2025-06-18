@@ -5,11 +5,14 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import Message from "./msg";
 import { ScrollArea } from "~/components/ui/scroll-area";
+import type {Id} from "../../../../convex/_generated/dataModel";
 
 export function EmbeddedThread(props: { id: string; state: State | null }) {
   const { id, state } = props;
   const msgs = useQuery(api.messages.getMessages, {
     embeddedThreadId: id,
+  } as {
+    embeddedThreadId: Id<"embeddedThreads">;
   });
 
   if (!msgs) {

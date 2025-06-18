@@ -22,7 +22,7 @@ const QUICK_MODELS = [
   "anthropic/claude-3.5-haiku",
   "google/gemini-2.0-flash-exp",
   "deepseek/deepseek-r1-0528:free",
-];
+] as MODEL_IDS[];
 
 export function CompactModelSelector({ selectedModel, onModelSelect, className }: CompactModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,8 +36,8 @@ export function CompactModelSelector({ selectedModel, onModelSelect, className }
   };
 
   // Check if model is free
-  const isFreeModel = (modelId: string) => {
-    return FREE_MODELS.includes(modelId as any) || modelId.endsWith(":free");
+  const isFreeModel = (modelId: MODEL_IDS) => {
+    return FREE_MODELS.includes(modelId);
   };
 
   // Get display name for model
@@ -52,7 +52,7 @@ export function CompactModelSelector({ selectedModel, onModelSelect, className }
       if (name.includes("DeepSeek")) return "DeepSeek";
       return name.split(" ")[0]; // Take first word
     }
-    return modelId.split("/")[1] || modelId;
+    return modelId.split("/")[1] ?? modelId;
   };
 
   return (
@@ -65,7 +65,7 @@ export function CompactModelSelector({ selectedModel, onModelSelect, className }
       >
         {currentModel && (
           <>
-            {getProviderIcon(getProviderName(currentModel.id)) || (
+            {getProviderIcon(getProviderName(currentModel.id)) ?? (
               <div className="w-3 h-3 bg-gray-400 rounded" />
             )}
             <span className="truncate max-w-20">
@@ -96,14 +96,14 @@ export function CompactModelSelector({ selectedModel, onModelSelect, className }
                 <button
                   key={modelId}
                   onClick={() => {
-                    onModelSelect(modelId as MODEL_IDS);
+                    onModelSelect(modelId);
                     setIsOpen(false);
                   }}
                   className={`w-full flex items-center gap-2 p-2 rounded text-left text-xs hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
                     isSelected ? "bg-blue-50 dark:bg-blue-900/20" : ""
                   }`}
                 >
-                  {getProviderIcon(getProviderName(modelId)) || (
+                  {getProviderIcon(getProviderName(modelId)) ?? (
                     <div className="w-3 h-3 bg-gray-400 rounded" />
                   )}
                   <div className="flex-1 min-w-0">

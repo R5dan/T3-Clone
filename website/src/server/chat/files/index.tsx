@@ -1,7 +1,7 @@
 import { Image } from "@imagekit/next";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { fetchQuery } from "convex/nextjs";
-import { api } from "convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import dark from "../highlighter/dark";
 import light from "../highlighter/light";
 import hljs from "highlight.js";

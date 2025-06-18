@@ -80,7 +80,6 @@ export async function sendMessage(
   const result = streamText({
     model: withTracing(openRouter.value.chat(model), phClient, {
       posthogDistinctId: userId,
-      posthogEvent: "chat",
       posthogProperties: {
         threadId: thread,
         embeddedThreadId: embeddedThread,

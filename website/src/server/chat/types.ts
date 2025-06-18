@@ -1,7 +1,7 @@
 import type { TOOLS } from "./consts";
 import { MODELS } from "./models";
 
-import type {Doc} from "convex/_generated/dataModel"
+import type { Doc } from "../../../convex/_generated/dataModel";
 
 export type TOOL = (typeof TOOLS)[number];
 export type MODEL = {

@@ -1,8 +1,8 @@
 "use client";
 
-import { api } from "convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { useQuery } from "convex/react";
-import type { Id } from "convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import type { Threads } from "~/server/chat";
 import Link from "next/link";
 import { useEffect, useState } from "react";

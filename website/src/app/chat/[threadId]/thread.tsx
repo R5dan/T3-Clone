@@ -1,6 +1,6 @@
 "use client";
 
-import { api } from "convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { useQuery } from "convex/react";
 import type { State } from "./chat";
 import React from "react";

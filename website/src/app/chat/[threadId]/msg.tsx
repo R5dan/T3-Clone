@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Highlighter } from "~/server/chat/highlighter";
 import { useTheme } from "~/server/utils";
 import { FilePreview, ImagePreview } from "~/server/chat/files";
-import type { Doc } from "convex/_generated/dataModel";
+import type { Doc } from "../../../../convex/_generated/dataModel";
 
 export default function Msg(props: {
   prompt: Doc<"messages">["prompt"];

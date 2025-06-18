@@ -5,9 +5,9 @@ import {
   generateUploadButton,
 } from "@uploadthing/react";
 import { fetchMutation } from "convex/nextjs";
-import { api } from "convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import type { ClientUploadedFileData } from "uploadthing/types";
-import type { Id } from "convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { z } from "zod";
 
 export type FilePreview = {

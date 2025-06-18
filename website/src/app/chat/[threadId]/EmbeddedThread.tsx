@@ -2,7 +2,7 @@
 
 import type { State } from "./chat";
 import { useQuery } from "convex/react";
-import { api } from "convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import Message from "./msg";
 import { ScrollArea } from "~/components/ui/scroll-area";
 

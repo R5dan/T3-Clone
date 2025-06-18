@@ -3,7 +3,7 @@
 import { useState, useEffect, useReducer, Suspense } from "react";
 import { Thread } from "./thread";
 import { z } from "zod";
-import { api } from "convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { type MODEL_IDS } from "~/server/chat";
 import { DEFAULT_MODEL } from "~/server/workos/defaults";
 import { useQuery } from "convex/react";

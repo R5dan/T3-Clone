@@ -2,7 +2,7 @@
 import { sendMessage, type MODEL, type MODEL, type MODEL_IDS } from "~/server/chat";
 import { z } from "zod";
 import { TOOLS } from "~/server/chat/consts";
-import type { Id } from "convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
 const chatSchema = z.object({
   threadId: z.string(),

@@ -1,5 +1,5 @@
 // import { withAuth } from "@workos-inc/authkit-nextjs";
-import { sendMessage } from "~/server/chat";
+import { sendMessage, type MODEL, type MODEL, type MODEL_IDS } from "~/server/chat";
 import { z } from "zod";
 import { TOOLS } from "~/server/chat/consts";
 import type { Id } from "convex/_generated/dataModel";
@@ -10,6 +10,7 @@ const chatSchema = z.object({
   message: z.string(),
   tools: z.record(z.enum(TOOLS), z.boolean()),
   model: z.string(),
+  files: z.array(z.string()),
 });
 
 export async function POST(req: Request) {
@@ -26,9 +27,9 @@ export async function POST(req: Request) {
   //   return new Response("Unauthenticated", { status: 401 });
   // }
 
-  const { threadId, embeddedThreadId, message, tools, model } = parsedJson.data;
+  const { threadId, embeddedThreadId, message, tools, model, files } = parsedJson.data;
 
-  console.log("CLEARED PARSING")
+  console.log("CLEARED PARSING");
 
   const msgRes = await sendMessage(
     message,
@@ -36,21 +37,22 @@ export async function POST(req: Request) {
     embeddedThreadId as Id<"embeddedThreads">,
     "local",
     tools as Record<(typeof TOOLS)[number], boolean>,
-    model,
+    model as MODEL_IDS,
+    files as (Id<"files"> | Id<"images">)[],
   );
 
-  console.log("CLEARED SEND")
+  console.log("CLEARED SEND");
 
   if (msgRes.isErr()) {
     console.error("Error:", msgRes.error);
     return new Response(msgRes.error.message, { status: 400 });
   }
 
-  console.log("RETURNING RESPONSE")
+  console.log("RETURNING RESPONSE");
 
   return msgRes.value.toDataStreamResponse({
     sendReasoning: true,
     sendSources: true,
-  })
+  });
 }
-        console.log("CLOSING");
+console.log("CLOSING");

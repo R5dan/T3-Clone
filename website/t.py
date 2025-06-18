@@ -15021,26 +15021,13 @@ MODELS = [
       ]
     }
   ]
-FREE_MODELS = []
-AUTO_MODELS = {
-    0: "openai/gpt-4o-2024-08-06",1: "openai/gpt-4o-2024-05-13",2: "openai/gpt-4-turbo-2024-04-09",3: "openai/gpt-4-0125-preview",4: "openai/gpt-4-1106-preview",5: "openai/gpt-4-0613",6: "openai/gpt-3.5-turbo-0125",7: "openai/gpt-4o-mini-2024-07-18",8: "openai/chatgpt-4o-latest",9: "openai/o1-preview-2024-09-12",10: "openai/o1-mini-2024-09-12",11: "openai/gpt-4.1-2025-04-14",12: "openai/gpt-4.1-mini-2025-04-14",13: "openai/gpt-4.1-nano-2025-04-14",14: "anthropic/claude-3-7-sonnet-20250219",15: "anthropic/claude-3-5-sonnet-latest",16: "anthropic/claude-3-5-sonnet-20241022",17: "anthropic/claude-3-5-haiku-20241022",18: "anthropic/claude-3-5-sonnet-20240620",19: "anthropic/claude-3-opus-20240229",20: "anthropic/claude-3-sonnet-20240229",21: "anthropic/claude-3-haiku-20240307",22: "anthropic/claude-2.1",23: "anthropic/claude-opus-4-20250514",24: "anthropic/claude-sonnet-4-20250514",25: "google/gemini-2.0-flash-001",26: "google/gemini-1.5-pro-latest",27: "google/gemini-1.5-flash-latest",28: "google/gemini-2.5-pro",29: "google/gemini-2.5-flash",30: "mistral/open-mixtral-8x22b",31: "mistral/codestral-latest",32: "mistral/open-mixtral-8x7b",33: "mistral/mistral-large-2407",34: "mistral/mistral-large-2402",35: "mistral/mistral-medium-latest",36: "mistral/mistral-small-latest",37: "mistral/open-mistral-7b",38: "mistral/open-mistral-nemo",39: "replicate/meta-llama-3-70b-instruct",40: "replicate/meta-llama-3-8b-instruct",41: "replicate/mixtral-8x7b-instruct-v0.1",42: "replicate/mistral-7b-instruct-v0.2",43: "replicate/meta-llama-3.1-405b-instruct",44: "togetherai/Llama-3-70b-chat-hf",45: "togetherai/Llama-3-8b-chat-hf",46: "togetherai/Meta-Llama-3.1-8B-Instruct-Turbo",47: "togetherai/Meta-Llama-3.1-70B-Instruct-Turbo",48: "togetherai/Meta-Llama-3.1-405B-Instruct-Turbo",49: "togetherai/Qwen2-72B-Instruct",50: "togetherai/Mixtral-8x22B-Instruct-v0.1",51: "togetherai/Mixtral-8x7B-Instruct-v0.1",52: "togetherai/Mistral-7B-Instruct-v0.2",53: "togetherai/DeepSeek-R1",54: "perplexity/sonar",55: "cohere/command-r-plus",56: "cohere/command-r"}
 for model in MODELS:
-    if model["pricing"] == {
-    "prompt": "0",
-    "completion": "0",
-    "request": "0",
-    "image": "0",
-    "web_search": "0",
-    "internal_reasoning": "0"
-  }:
-        FREE_MODELS.append(model)
-
-print("START")
-for k,v in AUTO_MODELS.items():
-    if v in FREE_MODELS:
-        print(v)
-
-print("END")
+    #print(model["id"])
+    if model["architecture"]["output_modalities"] == ["text"]:
+        print("\n\n\n")
+        print("SUCCESS")
+        print(model["id"])
+        
 
 
 AUTO_MODEL = {

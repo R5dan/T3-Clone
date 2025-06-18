@@ -7,7 +7,7 @@ import { handleMessage } from "~/server/chat/send";
 import { streamText } from "ai";
 
 const JSON = z.object({
-//  userId: z.string().optional(),
+  userId: z.string().optional(),
   prompt: z.string(),
   model: z.string(),
 });
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     console.log(`INVALID JSON: ${json.error.toString()}`)
     return new Response("Invalid JSON", { status: 400 });
   }
-  const { prompt, model } = json.data;
+  const { prompt, model, userId } = json.data;
 
 //  const user = await workos.userManagement.getUser(userId);
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const titleModel = defaultMetadata.titleModel;
 //  }
 
-  const resp = await handleMessage("local", model);
+  const resp = await handleMessage(userId ?? "local", model);
   if (resp.isErr()) {
     console.log(`ERROR: ${resp.error.toString()}`)
     return new Response(resp.error.message, { status: 400 });
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
   const thread = await fetchMutation(api.thread.createThread, {
     name: "",
-    userId: "local",
+    userId: userId ?? "local",
   });
   let title = "";
 

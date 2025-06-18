@@ -40,7 +40,6 @@ export class ThreadError extends Error {
     super(error);
   }
 }
-
 export class NoThread extends ThreadError {
   constructor(public threadId: string) {
     super(`No Thread with ID: ${threadId}`);
@@ -56,5 +55,23 @@ export class MessageError extends Error {
 export class NoMessage extends MessageError {
   constructor(public messageId: string) {
     super(`No Message with ID: ${messageId}`);
+  }
+}
+
+export class FileError extends MessageError {
+  constructor(error = "File Error") {
+    super(error);
+  }
+}
+
+export class NoImage extends FileError {
+  constructor(public imageId: string) {
+    super(`No Image with ID: ${imageId}`);
+  }
+}
+
+export class NoFile extends FileError {
+  constructor(public fileId: string) {
+    super(`No File with ID: ${fileId}`);
   }
 }

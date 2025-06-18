@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect, useReducer, Suspense } from "react";
-import { Thread } from "./thread";
-import { z } from "zod";
-import { api } from "convex/_generated/api";
+import { useRouter } from "next/navigation";
+import { Thread } from "./[threadId]/thread";
 import { type MODEL_IDS } from "~/server/chat";
 import { DEFAULT_MODEL } from "~/server/workos/defaults";
-import { useQuery } from "convex/react";
 import { useTheme } from "~/server/utils";
-import { ThreadsContainer } from "./threadLink";
+import { ThreadsContainer } from "./[threadId]/threadLink";
 import {
   type FilePreview,
   UploadButton,
@@ -42,18 +40,16 @@ type Action =
       type: "end";
     };
 
-const chatSchema = z.object({
-  threadId: z.string(),
-  message: z.string(),
-  tools: z.array(z.string()),
-  model: z.string(),
-});
-
-export function Page(props: { threadId: string }) {
-  const { threadId } = props;
+export default function Page() {
+  const router = useRouter();
   const { user, loading } = useAuth();
-  const convexUser = useQuery(api.utils.getUserFromWorkOS, { userId: user?.id ?? null });
   const [inputMessage, setInputMessage] = useState("");
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  const [model, setModel] = useState<MODEL_IDS>(DEFAULT_MODEL);
+  const [theme] = useTheme("dark");
+  const [files, setFiles] = useState<FilePreview[]>([]);
+
   const [newMessage, setNewMessage] = useReducer<State | null, [Action]>(
     (state, action) => {
       if (action.type === "prompt") {
@@ -69,7 +65,7 @@ export function Page(props: { threadId: string }) {
             prompt: "",
             response: action.response,
             reasoning: null,
-            sender: convexUser ? convexUser.id : "local",
+            sender: user?.id ?? "local",
           };
         } else if (state.response) {
           return {
@@ -91,7 +87,7 @@ export function Page(props: { threadId: string }) {
             prompt: "",
             response: null,
             reasoning: action.reasoning,
-            sender: convexUser ? convexUser.id : "local",
+            sender: user?.id ?? "local",
           };
         } else if (state.response) {
           return {
@@ -115,10 +111,6 @@ export function Page(props: { threadId: string }) {
     },
     null,
   );
-  const [model, setModel] = useState<MODEL_IDS>(DEFAULT_MODEL);
-  const thread = useQuery(api.thread.getThread, { threadId });
-  const [theme] = useTheme("dark");
-  const [files, setFiles] = useState<FilePreview[]>([]);
 
   // This useEffect handles loading the correct Highlight.js theme
   useEffect(() => {
@@ -143,64 +135,70 @@ export function Page(props: { threadId: string }) {
         document.getElementById("hljs-theme-link").remove();
       }
     };
-  }, [theme]); // Re-run when the theme changes
+  }, [theme]);
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  if (thread instanceof Error) {
-    return <div>Error: No thread</div>;
-  }
-
-
-  console.log("END STATES");
-  // if (loading) {
-  //   return <div>Loading...</div>;
-  // }
-  // if (!user) {
-  //   router.push("/auth/login");
-  //   return
-  // }
-
-  // const handleNewThread = async () => {
-  //   if (inputMessage.trim()) {
-  //     const res = await fetch("/api/chat/thread", {
-  //       method: "POST",
-  //       body: JSON.stringify({
-  //         prompt: inputMessage,
-  //         model: model,
-  //       }),
-  //     });
-  //     const { threadId } = await res.json();
-  //     setThread(threadId);
-  //     router.push(`/chat/${threadId}`);
-  //     return threadId;
-  //   }
-  // };
-
   const handleSendMessage = async () => {
     if (inputMessage.trim()) {
       console.log("[SEND]:", inputMessage);
-      setNewMessage({
-        type: "prompt",
-        prompt: inputMessage,
-        sender: convexUser?.id ?? "local",
-      });
       const messageToSend = inputMessage;
       setInputMessage("");
+
+      // If no thread exists, create one first
+      if (!threadId) {
+        setIsCreatingThread(true);
+        try {
+          const response = await fetch("/api/chat/thread", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              prompt: messageToSend,
+              model: model,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to create thread");
+          }
+
+          const { threadId: newThreadId } = await response.json();
+          setThreadId(newThreadId);
+          
+          // Redirect to the new thread
+          router.replace(`/chat/${newThreadId}`);
+          return;
+        } catch (error) {
+          console.error("Error creating thread:", error);
+          setIsCreatingThread(false);
+          return;
+        }
+      }
+
+      // If thread exists, send message normally
+      setNewMessage({
+        type: "prompt",
+        prompt: messageToSend,
+        sender: user?.id ?? "local",
+      });
+
       console.log(`MSG THREAD ID: ${threadId}`);
       const res = await fetch("/api/chat", {
         method: "POST",
         body: JSON.stringify({
           threadId,
-          embeddedThreadId: thread.defaultThread,
+          embeddedThreadId: null, // No embedded thread for new threads
           message: messageToSend,
           tools: {},
           model: model,
           files: files.map((file) => file.id)
         }),
       });
+      
       if (res.status !== 200) {
         console.log("ERROR RESPONSE");
         return;
@@ -209,6 +207,7 @@ export function Page(props: { threadId: string }) {
         console.log("NO RESPONSE");
         return;
       }
+      
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
@@ -235,16 +234,10 @@ export function Page(props: { threadId: string }) {
   ) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (threadId) {
-        await handleSendMessage();
-      } else {
-        //const thread = await handleNewThread();
-        await handleSendMessage();
-      }
+      await handleSendMessage();
     }
   };
 
-  console.log("END");
   return (
     <div className="dark:theme-atom-one theme-atom-one flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Sidebar with Thread Links */}
@@ -271,7 +264,14 @@ export function Page(props: { threadId: string }) {
       {/* Main Chat Area */}
       <div className="flex flex-1 flex-col">
         <div className="flex-1 overflow-hidden">
-          {threadId ? (
+          {isCreatingThread ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                <p>Creating new thread...</p>
+              </div>
+            </div>
+          ) : threadId ? (
             <Suspense>
               <Thread 
                 threadId={threadId} 
@@ -282,7 +282,10 @@ export function Page(props: { threadId: string }) {
             </Suspense>
           ) : (
             <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-              No thread selected
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-2">Start a new conversation</h2>
+                <p>Type your message below to begin</p>
+              </div>
             </div>
           )}
         </div>
@@ -311,10 +314,11 @@ export function Page(props: { threadId: string }) {
                 placeholder="Type your message..."
                 className="max-h-[200px] min-h-[40px] flex-1 resize-none border-none bg-transparent px-4 py-2 text-[15px] text-gray-900 placeholder-gray-500 outline-none dark:text-gray-100 dark:placeholder-gray-400"
                 rows={1}
+                disabled={isCreatingThread}
               />
               <button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim()}
+                disabled={!inputMessage.trim() || isCreatingThread}
                 className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white transition-all duration-200 hover:bg-blue-700 disabled:bg-gray-400 disabled:hover:bg-gray-400 dark:bg-blue-500 dark:hover:bg-blue-600 dark:disabled:bg-gray-700"
               >
                 <svg

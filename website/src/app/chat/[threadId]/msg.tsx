@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { Highlighter } from "~/server/chat/highlighter";
 import { useTheme } from "~/server/utils";
+import { FilePreview, ImagePreview } from "~/server/chat/files";
+import type { Doc } from "convex/_generated/dataModel";
 
 export default function Msg(props: {
-  prompt: string;
-  reasoning: string;
-  response: string;
+  prompt: Doc<"messages">["prompt"];
+  reasoning: Doc<"messages">["reasoning"];
+  response: Doc<"messages">["response"];
   id: string;
   hasReasoning: boolean;
   showSender: boolean;
@@ -18,14 +20,41 @@ export default function Msg(props: {
   const [editing, setEditing] = useState(false);
   const [showReasoning, setShowReasoning] = useState(false);
   const [theme] = useTheme("dark");
-  console.log("END MSG");
   return (
     <section id={id} className="group mb-6">
       {/* User Message */}
       <div className="mb-4 flex flex-col items-end">
         <div className="max-w-[90%] rounded-lg bg-blue-600 px-4 py-3 text-white shadow-sm">
-          <Highlighter markdown={prompt} theme={theme} />
+          {prompt.map((part, index) => {
+            if (part.role === "text") {
+              return <Highlighter markdown={part.content} theme={theme} key={index} />;
+            } else if (part.role === "image") {
+              return <ImagePreview id={part.image} key={index} />;
+            } else if (part.role === "file") {
+              return <FilePreview id={part.file} key={index} />;
+            }
+          })}
         </div>
+        <div>
+          {prompt.map((file, index) => {
+            if (file.role === "text") {
+              return null;
+            }
+            if (file.role === "image") {
+              return (
+                <ImagePreview id={file.image} key={index} />
+              );
+            } else {
+              return (
+                <FilePreview
+                  id={file.file}
+                  key={index}
+                />
+              );
+            }
+          }).filter((file) => file !== null)}
+        </div>
+
         {showSender && (
           <div className="mt-1 text-xs text-gray-500 opacity-0 transition-opacity group-hover:opacity-100">
             {sender}

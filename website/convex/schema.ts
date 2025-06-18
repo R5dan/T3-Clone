@@ -3,8 +3,24 @@ import { v } from "convex/values";
 
 export default defineSchema({
   messages: defineTable({
-    prompt: v.string(),
-    response: v.string(),
+    prompt: v.array(
+      v.union(
+        v.object({
+          role: v.literal("text"),
+          content: v.string(),
+        }),
+        v.object({ role: v.literal("image"), image: v.id("images") }),
+        v.object({ role: v.literal("file"), file: v.id("files") }),
+      ),
+    ),
+    response: v.array(
+      v.union(
+        v.object({
+          role: v.literal("text"),
+          content: v.string(),
+        }),
+      ),
+    ),
     reasoning: v.optional(v.string()),
     hasReasoning: v.boolean(),
     model: v.string(),
@@ -27,6 +43,16 @@ export default defineSchema({
     .index("thread", ["thread"])
     .index("threadAndSender", ["thread", "sender"]),
 
+  images: defineTable({
+    url: v.string(),
+    mimeType: v.string(),
+    filename: v.optional(v.string()),
+  }),
+  files: defineTable({
+    url: v.string(),
+    mimeType: v.string(),
+    filename: v.string(),
+  }),
   edits: defineTable({
     msgs: v.array(
       v.object({

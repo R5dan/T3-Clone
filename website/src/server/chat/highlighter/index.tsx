@@ -6,7 +6,67 @@ import React, { useState, useEffect } from "react";
 import HLJS from "react-syntax-highlighter";
 import dark from "./dark";
 import light from "./light";
-import { Clipboard, ClipboardCheck, WrapText, AlignLeft } from "lucide-react";
+import {
+  Clipboard,
+  ClipboardCheck,
+  WrapText,
+  AlignLeft,
+  Download,
+  createLucideIcon,
+} from "lucide-react";
+import mimes from "./mimes";
+
+const Downloading = createLucideIcon("downloading", [
+  ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
+  ["path", { d: "m7 10 5 5 5-5", key: "brsn70" }],
+]);
+
+function DownloadButton({
+  text,
+  filename,
+  mimeType,
+}: {
+  text: string;
+  filename: string;
+  mimeType: string;
+}) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+
+  const handleDownload = (
+    data: string[],
+    filename: string,
+    mimeType: string,
+  ) => {
+    setDownloading(true);
+    const blob = new Blob(data, {
+      type: mimeType,
+    });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setDownloading(false);
+    setDownloaded(true);
+  };
+
+  if (downloading) {
+  } else if (downloaded) {
+  } else {
+    return (
+      <button
+        onClick={() => handleDownload(text.split("\n"), filename, mimeType)}
+      >
+        <Download />
+      </button>
+    );
+  }
+}
 
 function Copy({ text }: { text: string }) {
   const [state, setState] = useState<"idle" | "copying">("idle");
@@ -74,17 +134,23 @@ export function Highlighter({
 
   return (
     <ReactMarkdown
-      children={markdown}
       remarkPlugins={[remarkGfm]}
       components={{
         code({ inline, className, children, ...props }) {
           const themeObj = theme === "dark" ? dark : light;
           const match = /language-(\w+)/.exec(className ?? "");
+          const lang = match ? match[1]! : ("plaintext" as const);
+          console.log("STRING CHILDREN" + String(children).replace(/\n$/, ""));
           return !inline && match ? (
             <div className="rounded-lg border-8 border-gray-900">
               <div className="text-s center flex justify-between text-gray-500">
-                <span className="font-mono">{match[1]}</span>
-                <div className="">
+                <span className="font-mono">{lang}</span>
+                <div>
+                  <DownloadButton
+                    text={String(children).replace(/\n$/, "")}
+                    filename={"abc"}
+                    mimeType={mimes[lang]}
+                  />
                   <WrapLines setWrap={setWrap} wrap={wrap} />
                   <Copy text={String(children).replace(/\n$/, "")} />
                 </div>
@@ -94,9 +160,8 @@ export function Highlighter({
               // style={{ borderColor: themeObj.hljs.background }}
               >
                 <HLJS
-                  children={String(children).replace(/\n$/, "")}
                   style={themeObj}
-                  language={match[1]}
+                  language={lang}
                   PreTag="div"
                   className="overflow-x-auto"
                   showLineNumbers
@@ -106,7 +171,7 @@ export function Highlighter({
                     "padding-color": "#030712",
                   }}
                   {...props}
-                />
+                >{String(children).replace(/\n$/, "")}</HLJS>
               </div>
             </div>
           ) : (
@@ -116,6 +181,8 @@ export function Highlighter({
           );
         },
       }}
-    />
+    >
+      {markdown}
+    </ReactMarkdown>
   );
 }

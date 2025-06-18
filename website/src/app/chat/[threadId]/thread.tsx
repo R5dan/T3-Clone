@@ -6,9 +6,16 @@ import type { State } from "./chat";
 import React from "react";
 import { EmbeddedThread } from "./EmbeddedThread";
 import { ThemeToggle } from "~/components/theme-toggle";
+import { CompactModelSelector } from "~/components/ui/compact-model-selector";
+import type { MODEL_IDS } from "~/server/chat/types";
 
-export function Thread(props: { threadId: string; state: State | null }) {
-  const { threadId, state } = props;
+export function Thread(props: { 
+  threadId: string; 
+  state: State | null;
+  selectedModel?: MODEL_IDS;
+  onModelSelect?: (model: MODEL_IDS) => void;
+}) {
+  const { threadId, state, selectedModel, onModelSelect } = props;
   console.log("THREAD ID:" + threadId);
   const thread = useQuery(api.thread.getThread, { threadId });
   if (!thread) {
@@ -30,8 +37,19 @@ export function Thread(props: { threadId: string; state: State | null }) {
               <button>{thread.owner}</button>
             </div>
           </div>
-          {/* <ThemeToggle /> */}
-          <ThemeToggle />
+          <div className="flex items-center gap-4">
+            {/* Model Selector */}
+            {selectedModel && onModelSelect && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Model:</span>
+                <CompactModelSelector
+                  selectedModel={selectedModel}
+                  onModelSelect={onModelSelect}
+                />
+              </div>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
       </div>
 

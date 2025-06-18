@@ -53,3 +53,26 @@ export const addUser = mutation({
     return user;
   },
 });
+
+export const getUser = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    return user;
+  },
+});
+
+export const getUserFromWorkOS = query({
+  args: { userId: v.union(v.string(), v.null()) },
+  handler: async (ctx, args) => {
+    if (!args.userId) {
+      return null;
+    }
+    const user = await ctx.db
+      .query("users")
+      // @ts-expect-error wont be null
+      .withIndex("id", (q) => q.eq("id", args.userId))
+      .first();
+    return user;
+  },
+});

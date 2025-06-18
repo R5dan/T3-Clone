@@ -19,6 +19,7 @@ export const addMessage = mutation({
   args: {
     threadId: v.id("threads"),
     message: v.string(),
+    files: v.array(v.union(v.id("files"), v.id("images"))),
     reasoning: v.optional(v.string()),
     response: v.string(),
     userId: v.union(v.id("users"), v.literal("local")),
@@ -26,7 +27,10 @@ export const addMessage = mutation({
     embeddedThreadId: v.id("embeddedThreads"),
   },
   handler: async (ctx, args) => {
-    const [thread, embeddedThread] = await Promise.all([ctx.db.get(args.threadId), ctx.db.get(args.embeddedThreadId)]);
+    const [thread, embeddedThread] = await Promise.all([
+      ctx.db.get(args.threadId),
+      ctx.db.get(args.embeddedThreadId),
+    ]);
     if (!thread) {
       return new NoThread(args.threadId);
     }
@@ -46,8 +50,31 @@ export const addMessage = mutation({
     ]);
 
     const mid = await ctx.db.insert("messages", {
-      prompt: args.message,
-      response: args.response,
+      prompt: [
+        {
+          role: "text",
+          content: args.message,
+        },
+        ...args.files.map((file) => {
+          if (file.__tableName === "images") {
+            return {
+              role: "image" as const,
+              image: file,
+            };
+          } else {
+            return {
+              role: "file" as const,
+              file: file,
+            };
+          }
+        }),
+      ],
+      response: [
+        {
+          role: "text",
+          content: args.response,
+        },
+      ],
       reasoning: args.reasoning,
       hasReasoning: args.reasoning ? true : false,
       model: args.model,
@@ -70,9 +97,8 @@ export const addMessage = mutation({
         msgs: [{ thread: args.embeddedThreadId, message: mid }],
       }),
       ctx.db.patch(args.embeddedThreadId, {
-        messages: embeddedThread.messages.concat([mid])
-      })
-    
+        messages: embeddedThread.messages.concat([mid]),
+      }),
     ]);
   },
 });
@@ -83,6 +109,7 @@ export const editMessage = mutation({
     threadId: v.id("threads"),
     embedThreadId: v.id("embeddedThreads"),
     message: v.string(),
+    files: v.array(v.union(v.id("files"), v.id("images"))),
     response: v.string(),
     reasoning: v.string(),
     userId: v.id("users"),
@@ -112,8 +139,31 @@ export const editMessage = mutation({
     }
 
     const message = await ctx.db.insert("messages", {
-      prompt: args.message,
-      response: args.response,
+      prompt: [
+        {
+          role: "text",
+          content: args.message,
+        },
+        ...args.files.map((file) => {
+          if (file.__tableName === "images") {
+            return {
+              role: "image" as const,
+              image: file,
+            };
+          } else {
+            return {
+              role: "file" as const,
+              file: file,
+            };
+          }
+        }),
+      ],
+      response: [
+        {
+          role: "text",
+          content: args.response,
+        },
+      ],
       reasoning: args.reasoning,
       hasReasoning: args.reasoning ? true : false,
       model: args.model,

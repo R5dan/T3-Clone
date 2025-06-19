@@ -30,6 +30,7 @@ interface ModelSelectorProps {
   selectedModel: MODEL_IDS;
   onModelSelect: (model: MODEL_IDS) => void;
   className?: string;
+  tab: "favourites" | "more" | "all";
 }
 
 // Popular models for the "More" section
@@ -58,9 +59,11 @@ const CAPABILITY_ICONS: Record<string, React.ReactNode> = {
   vision: <Eye className="w-3 h-3" />,
 };
 
-export function ModelSelector({ selectedModel, onModelSelect, className }: ModelSelectorProps) {
+export function ModelSelector({ selectedModel, onModelSelect, className, tab = "favourites"}: ModelSelectorProps) {
   const { user, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<"favourites" | "more" | "all">("favourites");
+  const [activeTab, setActiveTab] = useState<"favourites" | "more" | "all">(
+    tab,
+  );
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["favourites"]));
   const [searchQuery, setSearchQuery] = useState("");
   const [customModelId, setCustomModelId] = useState("");
@@ -322,7 +325,7 @@ export function ModelSelector({ selectedModel, onModelSelect, className }: Model
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         setCustomModelId(e.target.value)
                       }
-                      onKeyPress={(e: React.KeyboardEvent) =>
+                      onKeyDown={(e: React.KeyboardEvent) =>
                         e.key === "Enter" && handleCustomModelSelect()
                       }
                     />

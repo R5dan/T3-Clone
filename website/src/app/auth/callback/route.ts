@@ -14,6 +14,7 @@ export const GET = handleAuth({
     if (!data.user.metadata.userId) {
       const uid = await fetchMutation(api.utils.addUser, {
         userId: data.user.id,
+        email: data.user.email,
       });
       await workos.userManagement.updateUser({
         userId: data.user.id,

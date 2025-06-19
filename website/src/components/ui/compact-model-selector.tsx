@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, Settings } from "lucide-react";
+import { ChevronDown, ChevronUp, Settings } from "lucide-react";
 import { MODELS, FREE_MODELS } from "~/server/chat/models";
 import type { MODEL_IDS } from "~/server/chat/types";
 import { Button } from "~/components/ui/button";
@@ -24,12 +24,99 @@ const QUICK_MODELS = [
   "deepseek/deepseek-r1-0528:free",
 ] as MODEL_IDS[];
 
-export function CompactModelSelector({ selectedModel, onModelSelect, className }: CompactModelSelectorProps) {
+function Favourites({
+  setTab,
+  selectedModel,
+  isFreeModel,
+  onModelSelect,
+  setIsOpen,
+  getProviderName,
+  getModelDisplayName,
+}: {
+  setTab: React.Dispatch<React.SetStateAction<"favourites" | "more">>;
+  selectedModel: MODEL_IDS;
+  isFreeModel: (modelId: MODEL_IDS) => boolean;
+  onModelSelect: (modelId: MODEL_IDS) => void;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  getProviderName: (modelId: MODEL_IDS) => string;
+  getModelDisplayName: (modelId: MODEL_IDS) => string;
+}) {
+  return (
+    <div className="absolute bottom-full left-0 z-50 mb-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+      <div className="p-2">
+        <div className="mb-2 px-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+          Quick Select
+        </div>
+        {QUICK_MODELS.map((modelId) => {
+          const model = MODELS.find((m) => m.id === modelId);
+          if (!model) return null;
+
+          const isSelected = selectedModel === modelId;
+          const isFree = isFreeModel(modelId);
+
+          return (
+            <button
+              key={modelId}
+              onClick={() => {
+                onModelSelect(modelId);
+                setIsOpen(false);
+              }}
+              className={`flex w-full items-center gap-2 rounded p-2 text-left text-xs transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                isSelected ? "bg-blue-50 dark:bg-blue-900/20" : ""
+              }`}
+            >
+              {getProviderIcon(getProviderName(modelId)) ?? (
+                <div className="h-3 w-3 rounded bg-gray-400" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1">
+                  <span className="truncate font-medium">
+                    {getModelDisplayName(modelId)}
+                  </span>
+                  {isFree && (
+                    <span className="text-xs font-medium text-green-600">
+                      Free
+                    </span>
+                  )}
+                </div>
+                <div className="truncate text-xs text-gray-500 dark:text-gray-400">
+                  {model.name}
+                </div>
+              </div>
+              {isSelected && (
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+              )}
+            </button>
+          );
+        })}
+
+        <div className="mt-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+          <button
+            onClick={() => {
+              setTab("more");
+            }}
+            className="flex w-full items-center gap-2 rounded p-2 text-left text-xs transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            <Settings className="h-3 w-3" />
+            <span>More Models...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CompactModelSelector({
+  selectedModel,
+  onModelSelect,
+  className,
+}: CompactModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [tab, setTab] = useState<"favourites" | "more">("favourites");
 
   // Get current model info
-  const currentModel = MODELS.find(model => model.id === selectedModel);
-  
+  const currentModel = MODELS.find((model) => model.id === selectedModel);
+
   // Get provider name from model ID
   const getProviderName = (modelId: string) => {
     return modelId.split("/")[0];
@@ -42,7 +129,7 @@ export function CompactModelSelector({ selectedModel, onModelSelect, className }
 
   // Get display name for model
   const getModelDisplayName = (modelId: string) => {
-    const model = MODELS.find(m => m.id === modelId);
+    const model = MODELS.find((m) => m.id === modelId);
     if (model) {
       // Extract a shorter name from the full name
       const name = model.name;
@@ -57,99 +144,50 @@ export function CompactModelSelector({ selectedModel, onModelSelect, className }
 
   return (
     <div className={`relative ${className}`}>
+      {isOpen && (
+        <Favourites
+          setTab={setTab}
+          selectedModel={selectedModel}
+          isFreeModel={isFreeModel}
+          onModelSelect={onModelSelect}
+          setIsOpen={setIsOpen}
+          //@ts-expect-error types are fine
+          getProviderName={getProviderName}
+          //@ts-expect-error types are fine
+          getModelDisplayName={getModelDisplayName}
+        />
+      )}
+
       <Button
         variant="outline"
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 h-8 px-3 text-xs"
+        className="flex h-8 items-center gap-2 px-3 text-xs"
       >
         {currentModel && (
           <>
             {getProviderIcon(getProviderName(currentModel.id)) ?? (
-              <div className="w-3 h-3 bg-gray-400 rounded" />
+              <div className="h-3 w-3 rounded bg-gray-400" />
             )}
-            <span className="truncate max-w-20">
+            <span className="max-w-20 truncate">
               {getModelDisplayName(currentModel.id)}
             </span>
             {isFreeModel(currentModel.id) && (
-              <span className="text-xs text-green-600 font-medium">Free</span>
+              <span className="text-xs font-medium text-green-600">Free</span>
             )}
           </>
         )}
-        <ChevronDown className="w-3 h-3" />
+        {
+          isOpen ?
+            <ChevronUp className="h-3 w-3" />
+            : <ChevronDown className="h-3 w-3" />
+        }
       </Button>
-
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
-          <div className="p-2">
-            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
-              Quick Select
-            </div>
-            {QUICK_MODELS.map((modelId) => {
-              const model = MODELS.find(m => m.id === modelId);
-              if (!model) return null;
-              
-              const isSelected = selectedModel === modelId;
-              const isFree = isFreeModel(modelId);
-              
-              return (
-                <button
-                  key={modelId}
-                  onClick={() => {
-                    onModelSelect(modelId);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-2 p-2 rounded text-left text-xs hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                    isSelected ? "bg-blue-50 dark:bg-blue-900/20" : ""
-                  }`}
-                >
-                  {getProviderIcon(getProviderName(modelId)) ?? (
-                    <div className="w-3 h-3 bg-gray-400 rounded" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className="truncate font-medium">
-                        {getModelDisplayName(modelId)}
-                      </span>
-                      {isFree && (
-                        <span className="text-xs text-green-600 font-medium">Free</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {model.name}
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  )}
-                </button>
-              );
-            })}
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-              <button
-                onClick={() => {
-                  // Open full model selector modal or navigate to it
-                  window.open("/model-selector-demo", "_blank");
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center gap-2 p-2 rounded text-left text-xs hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Settings className="w-3 h-3" />
-                <span>All Models...</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Backdrop to close dropdown */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setIsOpen(false)}
-        />
+        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
       )}
     </div>
   );
-} 
+}

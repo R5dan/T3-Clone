@@ -52,6 +52,19 @@ export const getThread = query({
   },
 });
 
+export const getEmbeddedThread = query({
+  args: { threadId: v.id("embeddedThreads") },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db.get(args.threadId);
+
+    if (!thread) {
+      return null;
+    }
+
+    return thread;
+  },
+});
+
 export const getUserOwnedThreads = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -341,7 +354,7 @@ export const inviteUserByEmail = mutation({
   args: {
     email: v.string(),
     threadId: v.id("threads"),
-    userId: v.id("users"),
+    userId: v.union(v.id("users"), v.literal("local")),
     perm: v.union(v.literal("canSee"), v.literal("canSend")),
   },
   handler: async (ctx, args) => {

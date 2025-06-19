@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Doc, Id } from "../../../../convex/_generated/dataModel";
 
-export const Modal = ({ thread, setShowModal, userId }: { thread: (Doc<"threads">), setShowModal: React.Dispatch<React.SetStateAction<boolean>>, userId: Id<"users"> }) => {
+export const Modal = ({ thread, setShowModal, userId }: { thread: (Doc<"threads">), setShowModal: React.Dispatch<React.SetStateAction<boolean>>, userId: Id<"users"> | "local" }) => {
   const [inviteUserEmail, setInviteUserEmail] = useState("");
   const [description, setDescription] = useState(
     (thread && !(thread instanceof Error) ? thread.description?.text : "") ??
@@ -12,7 +12,7 @@ export const Modal = ({ thread, setShowModal, userId }: { thread: (Doc<"threads"
   const [note, setNote] = useState("");
   const [noteId, setNoteId] = useState<string | null>(null);
   const inviteUser = useMutation(api.thread.inviteUserByEmail);
-  const addNote = useMutation(api.utils.createNote);
+  const addOrUpdateNote = useMutation(api.utils.createOrEditNote);
   const [perm, setPerm] = useState<"canSee" | "canSend">("canSee");
 
   // Convex hooks
@@ -127,6 +127,7 @@ export const Modal = ({ thread, setShowModal, userId }: { thread: (Doc<"threads"
             </button>
           </div>
         )}
+        { userId !== "local" ? (
         <div className="mb-2">
           <div className="font-semibold">Your Notes:</div>
           <textarea
@@ -138,14 +139,15 @@ export const Modal = ({ thread, setShowModal, userId }: { thread: (Doc<"threads"
           <button
             className="mt-2 rounded bg-purple-600 px-3 py-1 text-white hover:bg-purple-700"
             onClick={async () => {
-              await addOrUpdateNote({ threadId: thread._id, userId: currentUserId, message: note, noteId });
+              await addOrUpdateNote({ threadId: thread._id, userId, message: note, noteId });
               setShowModal(false);
             }}
           >
             Save Note
           </button>
         </div>
+          ): <></>}
       </div>
-    </div>
+      </div>
   );
 };

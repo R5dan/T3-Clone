@@ -21,6 +21,7 @@ const Downloading = createLucideIcon("downloading", [
   ["path", { d: "m7 10 5 5 5-5", key: "brsn70" }],
 ]);
 
+
 function DownloadButton({
   text,
   filename,
@@ -126,9 +127,11 @@ function WrapLines({
 export function Highlighter({
   markdown,
   theme,
+  highlight,
 }: {
   markdown: string;
   theme: "dark" | "light";
+  highlight?: Record<string, string>;
 }) {
   const [wrap, setWrap] = useState(false);
 
@@ -171,7 +174,9 @@ export function Highlighter({
                     "padding-color": "#030712",
                   }}
                   {...props}
-                >{String(children).replace(/\n$/, "")}</HLJS>
+                >
+                  {String(children).replace(/\n$/, "")}
+                </HLJS>
               </div>
             </div>
           ) : (

@@ -8,11 +8,9 @@ import { type MODEL_IDS } from "~/server/chat";
 import { DEFAULT_MODEL } from "~/server/workos/defaults";
 import { useQuery } from "convex/react";
 import { useTheme } from "~/server/utils";
-import { ThreadsContainer } from "./threadLink";
 import {
   type FilePreview,
   UploadButton,
-  UploadDropzone,
 } from "~/server/uploadthing";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { CompactModelSelector } from "~/components/ui/compact-model-selector";
@@ -52,7 +50,9 @@ const chatSchema = z.object({
 export function Page(props: { threadId: string }) {
   const { threadId } = props;
   const { user, loading } = useAuth();
-  const convexUser = useQuery(api.utils.getUserFromWorkOS, { userId: user?.id ?? null });
+  const convexUser = useQuery(api.utils.getUserFromWorkOS, {
+    userId: user?.id ?? null,
+  });
   const [inputMessage, setInputMessage] = useState("");
   const [newMessage, setNewMessage] = useReducer<State | null, [Action]>(
     (state, action) => {
@@ -153,7 +153,6 @@ export function Page(props: { threadId: string }) {
     return <div>Error: No thread</div>;
   }
 
-
   console.log("END STATES");
   // if (loading) {
   //   return <div>Loading...</div>;
@@ -198,7 +197,7 @@ export function Page(props: { threadId: string }) {
           message: messageToSend,
           tools: {},
           model: model,
-          files: files.map((file) => file.id)
+          files: files.map((file) => file.id),
         }),
       });
       if (res.status !== 200) {
@@ -246,39 +245,13 @@ export function Page(props: { threadId: string }) {
 
   console.log("END");
   return (
-    <div className="dark:theme-atom-one theme-atom-one flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar with Thread Links */}
-      <div className="flex w-[300px] flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        <div className="shrink-0 border-b border-gray-200 bg-gradient-to-br from-gray-50 to-white px-5 py-5 dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
-          <div className="mb-2 text-xl font-bold text-gray-900 dark:text-gray-100">
-            Chats
-          </div>
-          {/* Model Selector */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Model:</span>
-            <CompactModelSelector
-              selectedModel={model}
-              onModelSelect={setModel}
-            />
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto py-4">
-          {/* Add your thread list here */}
-          <ThreadsContainer user="local" activeThreadId={threadId} />
-        </div>
-      </div>
-
+    <div className="dark:theme-atom-one theme-atom-one flex h-screen max-w-[99%] bg-gray-50 dark:bg-gray-900">
       {/* Main Chat Area */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex w-full flex-1 flex-col">
         <div className="flex-1 overflow-hidden">
           {threadId ? (
             <Suspense>
-              <Thread 
-                threadId={threadId} 
-                state={newMessage}
-                selectedModel={model}
-                onModelSelect={setModel}
-              />
+              <Thread threadId={threadId} state={newMessage} user={user ?? "local"} /> 
             </Suspense>
           ) : (
             <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
@@ -290,7 +263,19 @@ export function Page(props: { threadId: string }) {
         {/* Input Area */}
         <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="mx-auto max-w-3xl">
-            <UploadDropzone setFiles={setFiles} files={files} />
+            {/* Model Selector in Input Area */}
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Model:
+                </span>
+                <CompactModelSelector
+                  selectedModel={model}
+                  onModelSelect={setModel}
+                />
+              </div>
+            </div>
+            {/*<UploadDropzone setFiles={setFiles} files={files} />*/}
             <div className="flex items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-900">
               <UploadButton setFiles={setFiles} files={files} />
               <textarea

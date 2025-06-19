@@ -53,4 +53,3 @@ export async function POST(req: Request) {
     sendSources: true,
   });
 }
-console.log("CLOSING");

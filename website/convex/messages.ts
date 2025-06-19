@@ -15,6 +15,17 @@ export const getMessages = query({
   },
 });
 
+export const getMessage = query({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, args) => {
+    const msg = await ctx.db.get(args.messageId);
+    if (!msg) {
+      return null;
+    }
+    return msg;
+  },
+});
+
 export const addMessage = mutation({
   args: {
     threadId: v.id("threads"),
@@ -111,8 +122,8 @@ export const editMessage = mutation({
     message: v.string(),
     files: v.array(v.union(v.id("files"), v.id("images"))),
     response: v.string(),
-    reasoning: v.string(),
-    userId: v.id("users"),
+    reasoning: v.optional(v.string()),
+    userId: v.union(v.id("users"), v.literal("local")),
     model: v.string(),
   },
   handler: async (ctx, args) => {
@@ -127,14 +138,13 @@ export const editMessage = mutation({
       return new NoThread(args.threadId);
     }
     const [regen, edit] = await Promise.all([
-      ctx.db.insert("edits", {
-        msgs: [],
-        thread: args.threadId,
-      }),
+      ctx.db.get(msg.regens),
       ctx.db.get(msg.edits),
     ]);
-
     if (!edit) {
+      return new NoMessage(msg._id);
+    }
+    if (!regen) {
       return new NoMessage(msg._id);
     }
 
@@ -170,10 +180,10 @@ export const editMessage = mutation({
       sender: args.userId,
       pinned: false,
       edits: msg.edits,
-      regens: regen,
+      regens: regen._id,
 
-      curEdit: BigInt(0),
-      curResp: BigInt(0),
+      curEdit: BigInt(edit.msgs.length),
+      curResp: BigInt(regen.msgs.length),
       thread: args.threadId,
     });
 
@@ -187,8 +197,8 @@ export const editMessage = mutation({
       ctx.db.patch(msg.edits, {
         msgs: edit.msgs.concat([{ thread: args.embedThreadId, message }]),
       }),
-      ctx.db.patch(regen, {
-        msgs: [{ thread: args.embedThreadId, message }],
+      ctx.db.patch(msg.regens, {
+        msgs: regen.msgs.concat([{ thread: args.embedThreadId, message }]),
       }),
     ]);
 

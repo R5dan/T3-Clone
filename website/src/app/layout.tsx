@@ -19,10 +19,9 @@ const geist = Geist({
   variable: "--font-geist-sans",
 });
 
-
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {  
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
       <body>
@@ -34,7 +33,9 @@ export default function RootLayout({
         >
           <ConvexClientProvider>
             <AuthKitProvider>
-              <TRPCReactProvider>{children}</TRPCReactProvider>
+              <TRPCReactProvider>
+                {children}
+              </TRPCReactProvider>
             </AuthKitProvider>
           </ConvexClientProvider>
         </ThemeProvider>

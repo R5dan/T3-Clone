@@ -4,7 +4,8 @@ import { workos } from "~/server/workos";
 import { defaultMetadata } from "~/server/workos/defaults";
 import { z } from "zod";
 import { handleMessage } from "~/server/chat/send";
-import { streamText } from "ai";
+import { streamObject } from "ai";
+import type { Id } from "convex/_generated/dataModel";
 
 const JSON = z.object({
   userId: z.string().optional(),
@@ -16,29 +17,29 @@ const SYSTEM_PROMPT =
   "You are a helpful assistant. Your job is to respond with a good title for a thread. You should only respond with the name of the thread, nothing else. The name must be descriptive but strictly less that 35 characters.";
 
 export async function POST(req: Request) {
-  console.log("NEW THREAD")
+  console.log("NEW THREAD");
   const res = await req.json();
   const json = JSON.safeParse(res);
   if (json.success === false) {
-    console.log(`INVALID JSON: ${json.error.toString()}`)
+    console.log(`INVALID JSON: ${json.error.toString()}`);
     return new Response("Invalid JSON", { status: 400 });
   }
   const { prompt, model, userId } = json.data;
 
-//  const user = await workos.userManagement.getUser(userId);
+  const user = await workos.userManagement.getUser(userId);
 
-  //let titleModel: string;
-  // if (!user) {
-  //   titleModel = defaultMetadata.titleModel;
-  // } else if (user.metadata.titleModel) {
-  //   titleModel = user.metadata.titleModel;
-  // } else {
-  const titleModel = defaultMetadata.titleModel;
-//  }
+  let titleModel: string;
+  if (!user) {
+    titleModel = defaultMetadata.titleModel;
+  } else if (user.metadata.titleModel) {
+    titleModel = user.metadata.titleModel;
+  } else {
+    titleModel = defaultMetadata.titleModel;
+  }
 
   const resp = await handleMessage(userId ?? "local", model);
   if (resp.isErr()) {
-    console.log(`ERROR: ${resp.error.toString()}`)
+    console.log(`ERROR: ${resp.error.toString()}`);
     return new Response(resp.error.message, { status: 400 });
   }
 
@@ -46,31 +47,28 @@ export async function POST(req: Request) {
 
   const thread = await fetchMutation(api.thread.createThread, {
     name: "",
-    userId: userId ?? "local",
+    userId: (userId ?? "local") as Id<"users"> | "local",
   });
-  let title = "";
 
-  streamText({
+  streamObject({
     model: openRouter.chat(titleModel),
-    system: SYSTEM_PROMPT,
-    prompt,
+    prompt: SYSTEM_PROMPT,
+    schema: z.object({
+      title: z.string(),
+    }),
 
-    onChunk: async ({ chunk }) => {
-      try {
-        if (chunk.type === "text-delta") {
-          title += chunk.textDelta;
-          await fetchMutation(api.messages.editThreadTitle, {
-            threadId: thread,
-            name: title,
-          });
-        }
-      } catch (err) {
-        console.error(`[MESSAGE][STREAM][ERROR] ${err}`);
-      }
+    onError: async (error) => {
+      await fetchMutation(api.thread.editThreadTitle, {
+        threadId: thread,
+        name: "No title: Error",
+      });
     },
 
-    onError: ({ error: err }) => {
-      console.error(`[MESSAGE][STREAM][ERROR] ${err}`);
+    onFinish: async (data) => {
+      await fetchMutation(api.thread.editThreadTitle, {
+        threadId: thread,
+        name: data.object?.title ?? "No title",
+      });
     },
   });
 

@@ -1,5 +1,5 @@
-// import { withAuth } from "@workos-inc/authkit-nextjs";
-import { sendMessage, type MODEL, type MODEL, type MODEL_IDS } from "~/server/chat";
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { sendMessage, type MODEL, type MODEL_IDS } from "~/server/chat";
 import { z } from "zod";
 import { TOOLS } from "~/server/chat/consts";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -23,9 +23,7 @@ export async function POST(req: Request) {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  // if (!user) {
-  //   return new Response("Unauthenticated", { status: 401 });
-  // }
+  const user = await withAuth();
 
   const { threadId, embeddedThreadId, message, tools, model, files } = parsedJson.data;
 
@@ -35,7 +33,7 @@ export async function POST(req: Request) {
     message,
     threadId as Id<"threads">,
     embeddedThreadId as Id<"embeddedThreads">,
-    "local",
+    (user.user?.metadata.userId ?? "local") as ("local" | Id<"users">),
     tools as Record<(typeof TOOLS)[number], boolean>,
     model as MODEL_IDS,
     files as (Id<"files"> | Id<"images">)[],

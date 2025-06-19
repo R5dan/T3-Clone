@@ -110,5 +110,8 @@ export default defineSchema({
     owner: v.array(v.id("threads")),
     canSee: v.array(v.id("threads")),
     canSend: v.array(v.id("threads")),
-  }).index("id", ["id"]),
+    email: v.string(),
+  })
+    .index("id", ["id"])
+    .index("email", ["email"]),
 });

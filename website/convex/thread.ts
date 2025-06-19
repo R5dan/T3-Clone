@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
-import { NoThread, InvalidUserId, LocalUser } from "../src/server/errors";
+import { NoThread, InvalidUserId, NoUser } from "../src/server/errors";
 
 // export const branchThread = mutation({
 //   args: { threadId: v.id("threads"), userId: v.id("users") },
@@ -301,8 +301,47 @@ export const updateDescription = mutation({
 
 export const inviteUser = mutation({
   args: {
+    ownerId: v.id("users"),
     userId: v.id("users"),
     threadId: v.id("threads"),
+    perm: v.union(v.literal("canSee"), v.literal("canSend")),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db.get(args.threadId);
+    if (!thread) {
+      return new NoThread(args.threadId);
+    }
+
+    if (thread.owner !== args.ownerId) {
+      return new InvalidUserId(args.userId);
+    }
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      return new NoUser(args.userId);
+    }
+    if (args.perm === "canSee") {
+      await ctx.db.patch(args.threadId, {
+        canSee: thread.canSee.concat([args.userId]),
+      });
+      await ctx.db.patch(user._id, {
+        canSee: user.canSee.concat([args.threadId]),
+      });
+    } else if (args.perm === "canSend") {
+      await ctx.db.patch(args.threadId, {
+        canSend: thread.canSend.concat([args.userId]),
+      });
+      await ctx.db.patch(user._id, {
+        canSend: user.canSend.concat([args.threadId]),
+      });
+    }
+  },
+});
+
+export const inviteUserByEmail = mutation({
+  args: {
+    email: v.string(),
+    threadId: v.id("threads"),
+    userId: v.id("users"),
     perm: v.union(v.literal("canSee"), v.literal("canSend")),
   },
   handler: async (ctx, args) => {
@@ -314,13 +353,23 @@ export const inviteUser = mutation({
     if (thread.owner !== args.userId) {
       return new InvalidUserId(args.userId);
     }
+    const user = await ctx.db.query("users").withIndex("email", (q) => q.eq("email", args.email)).first();
+    if (!user) {
+      return new NoUser(args.email);
+    }
     if (args.perm === "canSee") {
       await ctx.db.patch(args.threadId, {
-        canSee: thread.canSee.concat([args.userId]),
+        canSee: thread.canSee.concat([user._id]),
+      });
+      await ctx.db.patch(user._id, {
+        canSee: user.canSee.concat([args.threadId]),
       });
     } else if (args.perm === "canSend") {
       await ctx.db.patch(args.threadId, {
-        canSend: thread.canSend.concat([args.userId]),
+        canSend: thread.canSend.concat([user._id]),
+      });
+      await ctx.db.patch(user._id, {
+        canSend: user.canSend.concat([args.threadId]),
       });
     }
   },

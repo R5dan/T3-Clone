@@ -298,3 +298,52 @@ export const updateDescription = mutation({
     });
   },
 });
+
+export const inviteUser = mutation({
+  args: {
+    userId: v.id("users"),
+    threadId: v.id("threads"),
+    perm: v.union(v.literal("canSee"), v.literal("canSend")),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db.get(args.threadId);
+    if (!thread) {
+      return new NoThread(args.threadId);
+    }
+
+    if (thread.owner !== args.userId) {
+      return new InvalidUserId(args.userId);
+    }
+    if (args.perm === "canSee") {
+      await ctx.db.patch(args.threadId, {
+        canSee: thread.canSee.concat([args.userId]),
+      });
+    } else if (args.perm === "canSend") {
+      await ctx.db.patch(args.threadId, {
+        canSend: thread.canSend.concat([args.userId]),
+      });
+    }
+  },
+});
+
+export const removeUser = mutation({
+  args: {
+    userId: v.id("users"),
+    threadId: v.id("threads"),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db.get(args.threadId);
+    if (!thread) {
+      return new NoThread(args.threadId);
+    }
+
+    if (thread.owner !== args.userId) {
+      return new InvalidUserId(args.userId);
+    }
+
+    await ctx.db.patch(args.threadId, {
+      canSee: thread.canSee.filter((id) => id !== args.userId),
+      canSend: thread.canSend.filter((id) => id !== args.userId),
+    });
+  },
+});

@@ -3,7 +3,7 @@
 import { useState, useEffect, useReducer, Suspense } from "react";
 import { Thread } from "./thread";
 import { z } from "zod";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "convex/_generated/api";
 import { type MODEL_IDS } from "~/server/chat";
 import { DEFAULT_MODEL } from "~/server/workos/defaults";
 import { useQuery } from "convex/react";
@@ -18,26 +18,8 @@ import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { CompactModelSelector } from "~/components/ui/compact-model-selector";
 
 export type State = {
-  prompt: {
-    role: "user" | "assistant";
-    content: [
-      {
-        type: "text";
-        text: string;
-      },
-      { type: "image"; image: string },
-      { type: "file"; data: string },
-    ];
-  };
-  response: {
-    role: "assistant";
-    content: [
-      {
-        type: "text";
-        content: string;
-      },
-    ];
-  } | null;
+  prompt: string;
+  response: string | null;
   reasoning: string | null;
   sender: string;
 };
@@ -70,20 +52,13 @@ const chatSchema = z.object({
 export function Page(props: { threadId: string }) {
   const { threadId } = props;
   const { user, loading } = useAuth();
-  const convexUser = useQuery(api.utils.getUserFromWorkOS, {
-    userId: user?.id ?? null,
-  });
+  const convexUser = useQuery(api.utils.getUserFromWorkOS, { userId: user?.id ?? null });
   const [inputMessage, setInputMessage] = useState("");
   const [newMessage, setNewMessage] = useReducer<State | null, [Action]>(
     (state, action) => {
       if (action.type === "prompt") {
         return {
-          prompt: [
-            {
-              role: "user",
-              content: action.prompt,
-            },
-          ],
+          prompt: action.prompt,
           response: null,
           reasoning: null,
           sender: action.sender,
@@ -178,6 +153,7 @@ export function Page(props: { threadId: string }) {
     return <div>Error: No thread</div>;
   }
 
+
   console.log("END STATES");
   // if (loading) {
   //   return <div>Loading...</div>;
@@ -222,7 +198,7 @@ export function Page(props: { threadId: string }) {
           message: messageToSend,
           tools: {},
           model: model,
-          files: files.map((file) => file.id),
+          files: files.map((file) => file.id)
         }),
       });
       if (res.status !== 200) {
@@ -279,9 +255,7 @@ export function Page(props: { threadId: string }) {
           </div>
           {/* Model Selector */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              Model:
-            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">Model:</span>
             <CompactModelSelector
               selectedModel={model}
               onModelSelect={setModel}
@@ -299,8 +273,8 @@ export function Page(props: { threadId: string }) {
         <div className="flex-1 overflow-hidden">
           {threadId ? (
             <Suspense>
-              <Thread
-                threadId={threadId}
+              <Thread 
+                threadId={threadId} 
                 state={newMessage}
                 selectedModel={model}
                 onModelSelect={setModel}
@@ -316,19 +290,6 @@ export function Page(props: { threadId: string }) {
         {/* Input Area */}
         <div className="shrink-0 border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="mx-auto max-w-3xl">
-            {/* Model Selector in Input Area */}
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  Model:
-                </span>
-                <CompactModelSelector
-                  selectedModel={model}
-                  onModelSelect={setModel}
-                />
-              </div>
-            </div>
-
             <UploadDropzone setFiles={setFiles} files={files} />
             <div className="flex items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-900">
               <UploadButton setFiles={setFiles} files={files} />

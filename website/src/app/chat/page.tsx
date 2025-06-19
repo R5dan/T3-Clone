@@ -14,31 +14,7 @@ import {
 } from "~/server/uploadthing";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { CompactModelSelector } from "~/components/ui/compact-model-selector";
-
-export type State = {
-  prompt: string;
-  response: string | null;
-  reasoning: string | null;
-  sender: string;
-};
-
-type Action =
-  | {
-      type: "prompt";
-      prompt: string;
-      sender: string;
-    }
-  | {
-      type: "response";
-      response: string;
-    }
-  | {
-      type: "reasoning";
-      reasoning: string;
-    }
-  | {
-      type: "end";
-    };
+import type { State } from "./[threadId]/chat";
 
 export default function Page() {
   const router = useRouter();

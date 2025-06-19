@@ -40,6 +40,44 @@ export const getUserThreadNotes = query({
   },
 });
 
+export const createNote = mutation({
+  args: {
+    userId: v.id("users"),
+    threadId: v.id("threads"),
+    note: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const note = await ctx.db.insert("notes", {
+      message: args.note,
+      thread: args.threadId,
+      creator: args.userId,
+      updatedAt: BigInt(Date.now()),
+    });
+    return note;
+  },
+});
+
+export const editNote = mutation({
+  args: {
+    noteId: v.id("notes"),
+    userId: v.id("users"),
+    note: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const note = await ctx.db.get(args.noteId);
+    if (!note) {
+      return new Error("Note not found");
+    }
+    if (note.creator !== args.userId) {
+      return new Error("Not authorized");
+    }
+    await ctx.db.patch(args.noteId, {
+      message: args.note,
+      updatedAt: BigInt(Date.now()),
+    });
+  },
+});
+
 export const addUser = mutation({
   args: { userId: v.string() },
   handler: async (ctx, args) => {

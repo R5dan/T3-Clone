@@ -9,7 +9,7 @@ import type { Doc } from "../../../../convex/_generated/dataModel";
 export default function Msg(props: {
   prompt: Doc<"messages">["prompt"];
   reasoning: Doc<"messages">["reasoning"];
-  response: Doc<"messages">["response"];
+  response: Doc<"messages">["response"] | null;
   id: string;
   hasReasoning: boolean;
   showSender: boolean;
@@ -78,29 +78,29 @@ export default function Msg(props: {
                     Wait Index:{" "}
                     <span
                       className={
-                        (new RegExp("wait", "g").exec(reasoning) ?? [])
+                        (new RegExp("wait", "g").exec(reasoning ?? "") ?? [])
                           .length === 0
                           ? "text-green-600 dark:text-green-400"
-                          : (new RegExp("wait", "g").exec(reasoning) ?? [])
+                          : (new RegExp("wait", "g").exec(reasoning ?? "") ?? [])
                                 .length < 5
                             ? "text-orange-600 dark:text-orange-400"
                             : "text-red-600 dark:text-red-400"
                       }
                     >
-                      {(new RegExp("wait", "g").exec(reasoning) ?? []).length}
+                      {(new RegExp("wait", "g").exec(reasoning ?? "") ?? []).length}
                     </span>
                   </span>
                 </button>
               </div>
               {showReasoning && (
-                <Highlighter markdown={reasoning} theme={theme} />
+                <Highlighter markdown={reasoning ?? ""} theme={theme} />
               )}
             </div>
           )}
           {/* Response */}
           <div className="rounded-lg px-4 py-3 shadow-sm dark:bg-gray-800">
             {response ? (
-              <Highlighter markdown={response} theme={theme} />
+              <Highlighter markdown={response.map((r) => r.content).join("")} theme={theme} />
             ) : (
               <div className="prose dark:prose-invert max-w-none"></div>
             )}

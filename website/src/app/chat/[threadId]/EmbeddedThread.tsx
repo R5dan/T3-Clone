@@ -38,9 +38,9 @@ export function EmbeddedThread(props: { id: string; state: State | null }) {
           ))}
           {state ? (
             <Message
-              prompt={state.prompt}
-              response={state.response}
-              reasoning={state.reasoning}
+              prompt={[{ role: "text" as const, content: state.prompt }]}
+              response={state.response ? [{ role: "text", content: state.response }]: null}
+              reasoning={state.reasoning ?? undefined}
               hasReasoning={state.reasoning ? true : false}
               id="latest"
               showSender={true}

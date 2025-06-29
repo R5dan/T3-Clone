@@ -1,22 +1,16 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
-import { sendMessage, type MODEL, type MODEL_IDS } from "~/server/chat";
-import { z } from "zod";
-import { TOOLS } from "~/server/chat/consts";
+import { sendMessage } from "~/server/chat";
 import type { Id } from "../../../../convex/_generated/dataModel";
-
-const chatSchema = z.object({
-  threadId: z.string(),
-  embeddedThreadId: z.string(),
-  message: z.string(),
-  tools: z.record(z.enum(TOOLS), z.boolean()),
-  model: z.string(),
-  files: z.array(z.string()),
-});
+import {
+  type MessageSendBody,
+  MessageSendBodySchema,
+} from "~/server/chat/types";
 
 export async function POST(req: Request) {
   console.log("POST: New message");
   const json = await req.json();
-  const parsedJson = chatSchema.safeParse(json);
+  console.log("JSON:", json);
+  const parsedJson = MessageSendBodySchema.safeParse(json);
 
   if (parsedJson.success === false) {
     console.error("Validation error:", parsedJson.error);
@@ -25,18 +19,18 @@ export async function POST(req: Request) {
 
   const user = await withAuth();
 
-  const { threadId, embeddedThreadId, message, tools, model, files } = parsedJson.data;
+  const { threadId, embeddedThreadId, message, tools, model } =
+    parsedJson.data as MessageSendBody;
 
   console.log("CLEARED PARSING");
 
-  const msgRes = await sendMessage(
+  const msgRes = sendMessage(
     message,
-    threadId as Id<"threads">,
-    embeddedThreadId as Id<"embeddedThreads">,
-    (user.user?.metadata.userId ?? "local") as ("local" | Id<"users">),
-    tools as Record<(typeof TOOLS)[number], boolean>,
-    model as MODEL_IDS,
-    files as (Id<"files"> | Id<"images">)[],
+    threadId,
+    embeddedThreadId,
+    (user.user?.metadata.userId ?? "local") as "local" | Id<"users">,
+    tools,
+    model,
   );
 
   console.log("CLEARED SEND");

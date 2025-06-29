@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { NoThread, InvalidUserId, NoUser } from "../src/server/errors";
@@ -39,16 +39,29 @@ import { NoThread, InvalidUserId, NoUser } from "../src/server/errors";
 //   },
 // });
 
+const getThreadHelper = async (
+  ctx: QueryCtx,
+  args: { threadId: Id<"threads"> },
+) => {
+  const thread = await ctx.db.get(args.threadId);
+
+  if (!thread) {
+    return new NoThread(args.threadId);
+  }
+
+  return thread;
+};
+
 export const getThread = query({
   args: { threadId: v.id("threads") },
+  handler: getThreadHelper,
+});
+
+export const getOptionalThread = query({
+  args: { threadId: v.optional(v.id("threads")) },
   handler: async (ctx, args) => {
-    const thread = await ctx.db.get(args.threadId);
-
-    if (!thread) {
-      return new NoThread(args.threadId);
-    }
-
-    return thread;
+    if (!args.threadId) return null;
+    return await getThreadHelper(ctx, { threadId: args.threadId });
   },
 });
 
@@ -132,7 +145,10 @@ export const getThreadsForUser = query({
     const canSend = user.canSend;
     const owned = user.owner;
 
-    const threads: Record<"owner"|"canSee"|"canSend", Array<Doc<"threads">>> = { owner: [], canSee: [], canSend: [] };
+    const threads: Record<
+      "owner" | "canSee" | "canSend",
+      Array<Doc<"threads">>
+    > = { owner: [], canSee: [], canSend: [] };
 
     await Promise.all([
       canSee.map(async (threadId) => {
@@ -153,9 +169,8 @@ export const getThreadsForUser = query({
           threads.owner.push(thread);
         }
       }),
-    ]
-    );
-    
+    ]);
+
     return threads;
   },
 });
@@ -366,7 +381,10 @@ export const inviteUserByEmail = mutation({
     if (thread.owner !== args.userId) {
       return new InvalidUserId(args.userId);
     }
-    const user = await ctx.db.query("users").withIndex("email", (q) => q.eq("email", args.email)).first();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", args.email))
+      .first();
     if (!user) {
       return new NoUser(args.email);
     }
@@ -407,5 +425,88 @@ export const removeUser = mutation({
       canSee: thread.canSee.filter((id) => id !== args.userId),
       canSend: thread.canSend.filter((id) => id !== args.userId),
     });
+  },
+});
+
+export const addUserToThreads = mutation({
+  args: {
+    userId: v.id("users"),
+    threadIds: v.object({
+      owner: v.array(v.id("threads")),
+      canSee: v.array(v.id("threads")),
+      canSend: v.array(v.id("threads")),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      return new NoUser(args.userId);
+    }
+    const ownerThreads: Id<"threads">[] = [];
+    const canSeeThreads: Id<"threads">[] = [];
+    const canSendThreads: Id<"threads">[] = [];
+    await Promise.all(
+      [
+        args.threadIds.owner.map(async (id) => {
+          const thread = await ctx.db.get(id);
+          if (!thread) {
+            return new NoThread(id);
+          }
+
+          if (thread.owner !== "local") {
+            return new InvalidUserId(args.userId);
+          }
+
+          ownerThreads.push(id);
+
+          await ctx.db.patch(id, {
+            owner: args.userId,
+          });
+        }),
+        args.threadIds.canSee.map(async (id) => {
+          const thread = await ctx.db.get(id);
+          if (!thread) {
+            return new NoThread(id);
+          }
+
+          if (!thread.canSee.includes("local")) {
+            return new InvalidUserId(args.userId);
+          }
+
+          canSeeThreads.push(id);
+
+          await ctx.db.patch(id, {
+            canSee: thread.canSee.concat([args.userId]),
+          });
+        }),
+        args.threadIds.canSend.map(async (id) => {
+          const thread = await ctx.db.get(id);
+          if (!thread) {
+            return new NoThread(id);
+          }
+
+          if (!thread.canSend.includes("local")) {
+            return new InvalidUserId(args.userId);
+          }
+
+          canSendThreads.push(id);
+
+          await ctx.db.patch(id, {
+            canSend: thread.canSend.concat([args.userId]),
+          });
+        }),
+      ].flat(),
+    );
+    await Promise.all([
+      ctx.db.patch(user._id, {
+        owner: user.owner.concat(ownerThreads),
+      }),
+      ctx.db.patch(user._id, {
+        canSee: user.canSee.concat(canSeeThreads),
+      }),
+      ctx.db.patch(user._id, {
+        canSend: user.canSend.concat(canSendThreads),
+      }),
+    ]);
   },
 });

@@ -30,16 +30,19 @@ export class InvalidUserId extends UserError {
     super(`Invalid User ID: ${userId}`);
   }
 }
+
 export class LocalUser extends UserError {
   constructor() {
     super(`User is local`);
   }
 }
+
 export class ThreadError extends Error {
   constructor(error = "Thread Error") {
     super(error);
   }
 }
+
 export class NoThread extends ThreadError {
   constructor(public threadId: string) {
     super(`No Thread with ID: ${threadId}`);
@@ -52,9 +55,27 @@ export class MessageError extends Error {
   }
 }
 
+export class NoEdit extends MessageError {
+  constructor(public editId: string) {
+    super(`No Edit with ID: ${editId}`);
+  }
+}
+
+export class NoRegen extends MessageError {
+  constructor(public regenId: string) {
+    super(`No Regen with ID: ${regenId}`);
+  }
+}
+
 export class NoMessage extends MessageError {
   constructor(public messageId: string) {
     super(`No Message with ID: ${messageId}`);
+  }
+}
+
+export class NoDraft extends MessageError {
+  constructor(public messageId: string) {
+    super(`No Draft with ID: ${messageId}`);
   }
 }
 

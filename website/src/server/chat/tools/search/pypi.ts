@@ -1,6 +1,7 @@
+import { tool } from "ai";
 import { z } from "zod";
 
-export const PyPiMetadataSchema = z.object({
+const PyPiMetadataSchema = z.object({
   author: z.string(),
   author_email: z.string(),
   classifiers: z.array(z.string()),
@@ -26,13 +27,13 @@ export const PyPiMetadataSchema = z.object({
   yanked_reason: z.null(),
 });
 
-export const emptyObjectSchema = z.object({});
+const emptyObjectSchema = z.object({});
 
-export type PyPiMetadata = z.infer<typeof PyPiMetadataSchema>;
-export type emptyObject = z.infer<typeof emptyObjectSchema>;
-export type PyPiMetadatas = (PyPiMetadata | emptyObject)[];
+type PyPiMetadata = z.infer<typeof PyPiMetadataSchema>;
+type emptyObject = z.infer<typeof emptyObjectSchema>;
+type PyPiMetadatas = (PyPiMetadata | emptyObject)[];
 
-export const searchPypi = async (query: string): Promise<PyPiMetadatas> => {
+const searchPypi = async ({query} : {query: string}): Promise<PyPiMetadatas> => {
   const searchRes = await fetch(
     `https://pypi.org/search/?q=${encodeURIComponent(query)}`,
   );
@@ -55,3 +56,10 @@ export const searchPypi = async (query: string): Promise<PyPiMetadatas> => {
   return await Promise.all(data);
 };
 
+export const TOOL = tool({
+  description: "Search python packages on the official python package index",
+  parameters: z.object({
+    query: z.string().describe("The query to search for packages")
+  }),
+  execute: searchPypi
+})

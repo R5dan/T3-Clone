@@ -1,3 +1,4 @@
+import { NoUser } from "../src/server/errors";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -108,8 +109,15 @@ export const editNote = mutation({
   },
 });
 
+export const DEFAULT_TITLE_MODEL = "google/gemini-2.5-pro-exp-03-25";
+export const DEFAULT_MODEL = "deepseek/deepseek-r1-0528:free";
+
 export const addUser = mutation({
-  args: { userId: v.string(), email: v.string() },
+  args: {
+    userId: v.string(),
+    email: v.string(),
+    openRouterKey: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const user = await ctx.db.insert("users", {
       id: args.userId,
@@ -117,17 +125,70 @@ export const addUser = mutation({
       canSee: [],
       canSend: [],
       email: args.email,
+      friends: [],
+      blocked: [],
+      requestedFriend: [],
+      requestingFriend: [],
+      titleModel: DEFAULT_TITLE_MODEL,
+      defaultModel: DEFAULT_MODEL,
+      memories: [],
+
+      toolCredentials: {},
+      toolPreferences: {},
+      tools: {},
     });
 
     return user;
   },
 });
 
-export const getUser = query({
-  args: { userId: v.id("users"), email: v.string() },
+export const addMemory = mutation({
+  args: {
+    userId: v.id("users"),
+    memory: v.string(),
+  },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
+
+    if (!user) {
+      return new NoUser(args.userId);
+    }
+
+    await ctx.db.patch(user._id, {
+      memories: user?.memories?.concat(args.memory),
+    });
+  },
+});
+
+export const getMemories = query({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+
+    if (!user) {
+      return new NoUser(args.userId);
+    }
+    return user.memories;
+  },
+});
+
+export const getUser = query({
+  args: { userId: v.union(v.id("users"), v.literal("local")) },
+  handler: async (ctx, args) => {
+    if (args.userId === "local") {
+      return null;
+    }
+    const user = await ctx.db.get(args.userId);
     return user;
+  },
+});
+
+export const getAllUsers = query({
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    return users;
   },
 });
 
@@ -154,5 +215,28 @@ export const getUserByEmail = query({
       .withIndex("email", (q) => q.eq("email", args.email))
       .first();
     return user;
+  },
+});
+
+export const updateUserSettings = mutation({
+  args: {
+    userId: v.id("users"),
+    openRouterKey: v.optional(v.string()),
+    defaultModel: v.optional(v.string()),
+    titleModel: v.optional(v.string()),
+    friends: v.optional(v.array(v.id("users"))),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const patch: Record<string, any> = {};
+    if ("openRouterKey" in args) patch.openRouterKey = args.openRouterKey;
+    if ("defaultModel" in args) patch.defaultModel = args.defaultModel;
+    if ("titleModel" in args) patch.titleModel = args.titleModel;
+    if ("friends" in args) patch.friends = args.friends;
+    await ctx.db.patch(args.userId, patch);
+    return { success: true };
   },
 });

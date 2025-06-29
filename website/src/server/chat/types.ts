@@ -1,16 +1,19 @@
-import type { TOOLS } from "./consts";
 import { MODELS } from "./models";
+import { z } from "zod";
 
-import type { Doc } from "../../../convex/_generated/dataModel";
+import type { Doc, Id } from "../../../convex/_generated/dataModel";
 
-export type TOOL = (typeof TOOLS)[number];
 export type MODEL = {
   id: MODEL_IDS;
   name: MODEL_NAMES;
   description: string;
   context_length: number;
   architecture: {
-    input_modalities: ["text"] | ["text", "image"] | ["text", "file"] | ["text", "image", "file"];
+    input_modalities:
+      | ["text"]
+      | ["text", "image"]
+      | ["text", "file"]
+      | ["text", "image", "file"];
     output_modalities: ["text"];
   };
   pricing: {
@@ -37,3 +40,45 @@ export type notes = Doc<"notes">;
 export type users = Doc<"users">;
 
 export type Edit = Doc<"edits">;
+
+export const MessageSendBodySchema = z.object({
+  threadId: z.string(),
+  embeddedThreadId: z.string(),
+  message: z.array(
+    z.union([
+      z.object({
+        type: z.literal("text"),
+        text: z.string(),
+      }),
+      z.object({
+        type: z.literal("image"),
+        image: z.string(),
+        mimeType: z.string(),
+        filename: z.string(),
+      }),
+      z.object({
+        type: z.literal("file"),
+        data: z.string(),
+        mimeType: z.string(),
+        filename: z.string(),
+      }),
+    ]),
+  ),
+  tools: z.record(z.string(), z.boolean()),
+  model: z.string().refine((val) => val in MODEL_IDS_VALUES),
+});
+
+export type MessageSendBody = {
+  threadId: Id<"threads">;
+  embeddedThreadId: Id<"embeddedThreads">;
+  message: (
+    | {
+        type: "text";
+        text: string;
+      }
+    | { type: "image"; image: string; mimeType: string; filename: string }
+    | { type: "file"; data: string; mimeType: string; filename: string }
+  )[];
+  tools: Record<string, boolean>;
+  model: MODEL_IDS;
+};

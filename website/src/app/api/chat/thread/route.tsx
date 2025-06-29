@@ -1,16 +1,17 @@
 import { api } from "../../../../../convex/_generated/api";
-import { fetchMutation } from "convex/nextjs";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { workos } from "~/server/workos";
-import { defaultMetadata } from "~/server/workos/defaults";
+import { DEFAULT_TITLE_MODEL, defaultMetadata } from "~/server/workos/defaults";
 import { z } from "zod";
 import { handleMessage } from "~/server/chat/send";
 import { streamObject } from "ai";
-import type { Id } from "convex/_generated/dataModel";
+import type { Doc, Id } from "convex/_generated/dataModel";
+import type { User } from "@workos-inc/node";
+import type { MODEL_IDS } from "~/server/chat";
 
 const JSON = z.object({
   userId: z.string().optional(),
   prompt: z.string(),
-  model: z.string(),
 });
 
 const SYSTEM_PROMPT =
@@ -24,31 +25,42 @@ export async function POST(req: Request) {
     console.log(`INVALID JSON: ${json.error.toString()}`);
     return new Response("Invalid JSON", { status: 400 });
   }
-  const { prompt, model, userId } = json.data;
+  const { prompt, userId } = json.data;
 
-  const user = await workos.userManagement.getUser(userId);
-
-  let titleModel: string;
-  if (!user) {
-    titleModel = defaultMetadata.titleModel;
-  } else if (user.metadata.titleModel) {
-    titleModel = user.metadata.titleModel;
+  let convexUser: Doc<"users"> | undefined | null;
+  if (!userId) {
+    convexUser = null;
   } else {
-    titleModel = defaultMetadata.titleModel;
+    convexUser = await fetchQuery(api.utils.getUserFromWorkOS, {
+      userId,
+    });
   }
 
-  const resp = await handleMessage(userId ?? "local", model);
+  let titleModel: MODEL_IDS;
+  if (!convexUser) {
+    titleModel = DEFAULT_TITLE_MODEL;
+  } else {
+    titleModel = convexUser.titleModel as MODEL_IDS;
+  }
+
+  const resp = await handleMessage(userId ?? "local", titleModel);
   if (resp.isErr()) {
     console.log(`ERROR: ${resp.error.toString()}`);
     return new Response(resp.error.message, { status: 400 });
   }
 
   const openRouter = resp.value;
-
-  const thread = await fetchMutation(api.thread.createThread, {
-    name: "",
+  console.log("OPENROUTER", openRouter);
+  const threadId = await fetchMutation(api.thread.createThread, {
+    name: "Unnamed Thread",
     userId: (userId ?? "local") as Id<"users"> | "local",
   });
+  const thread = await fetchQuery(api.thread.getOptionalThread, { threadId });
+  if (!thread || thread instanceof Error) {
+    console.log("ERROR: THREAD NOT FOUND");
+    return new Response("Thread not found", { status: 400 });
+  }
+  const embeddedThreadId = thread.defaultThread;
 
   streamObject({
     model: openRouter.chat(titleModel),
@@ -59,20 +71,21 @@ export async function POST(req: Request) {
 
     onError: async (error) => {
       await fetchMutation(api.thread.editThreadTitle, {
-        threadId: thread,
+        threadId: thread._id,
         name: "No title: Error",
       });
     },
 
     onFinish: async (data) => {
       await fetchMutation(api.thread.editThreadTitle, {
-        threadId: thread,
+        threadId: thread._id,
         name: data.object?.title ?? "No title",
       });
     },
   });
 
   return Response.json({
-    threadId: thread,
+    threadId,
+    embeddedThreadId,
   });
 }

@@ -1,9 +1,20 @@
-import type { TOOL } from "./types";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { streamText } from "ai";
+import {
+  streamText,
+  type FilePart,
+  type ImagePart,
+  type JSONValue,
+  type ProviderMetadata,
+  type TextPart,
+} from "ai";
 import { workos } from "~/server/workos";
 import { Ok, Err } from "neverthrow";
-import { FileError, InvalidUserId, NoOpenRouterKey } from "~/server/errors";
+import {
+  FileError,
+  InvalidUserId,
+  NoOpenRouterKey,
+  NoThread,
+} from "~/server/errors";
 import { FREE_MODELS } from "./models";
 import type { MODEL_IDS } from "./types";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
@@ -12,6 +23,33 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { PostHog } from "posthog-node";
 import { withTracing } from "@posthog/ai";
+import type { MessageSendBodySchema } from "./types";
+import type { z } from "zod";
+import { getTools } from "./tools";
+
+type ProviderOptions = Record<string, Record<string, JSONValue>>;
+
+interface ReasoningPart {
+  type: "reasoning";
+  /**
+  The reasoning text.
+     */
+  text: string;
+  /**
+  An optional signature for verifying that the reasoning originated from the model.
+     */
+  signature?: string;
+  /**
+  Additional provider-specific metadata. They are passed through
+  to the provider from the AI SDK and enable provider-specific
+  functionality that can be fully encapsulated in the provider.
+   */
+  providerOptions?: ProviderOptions;
+  /**
+  @deprecated Use `providerOptions` instead.
+   */
+  experimental_providerMetadata?: ProviderMetadata;
+}
 
 export async function handleMessage(userId: string, model: MODEL_IDS) {
   let key: string;
@@ -56,14 +94,15 @@ export async function handleMessage(userId: string, model: MODEL_IDS) {
   return new Ok(openRouter);
 }
 
+type msgType = z.infer<typeof MessageSendBodySchema.shape.message>;
+
 export async function sendMessage(
-  message: string,
+  message: msgType,
   thread: Id<"threads">,
   embeddedThread: Id<"embeddedThreads">,
   userId: Id<"users"> | "local",
-  tools: Record<TOOL, boolean>,
+  tools: string[],
   model: MODEL_IDS,
-  files: (Id<"files"> | Id<"images">)[],
 ) {
   const openRouter = await handleMessage(userId, model);
   if (openRouter.isErr()) {
@@ -77,6 +116,8 @@ export async function sendMessage(
     { host: "https://eu.i.posthog.com" },
   );
 
+  const toolsObj = await getTools(tools, userId);
+
   const result = streamText({
     model: withTracing(openRouter.value.chat(model), phClient, {
       posthogDistinctId: userId,
@@ -85,137 +126,154 @@ export async function sendMessage(
         embeddedThreadId: embeddedThread,
       },
     }),
+    tools: toolsObj,
     messages: (
       await Promise.all(
-        msgs
-          .map(async (msg) => {
-            if (msg.reasoning) {
-              return [
-                {
-                  role: "user" as const,
-                  content: await Promise.all(
-                    msg.prompt.map(async (prompt) => {
-                      if (prompt.role === "text") {
-                        return {
-                          type: "text" as const,
-                          text: prompt.content,
-                        };
-                      } else if (prompt.role === "image") {
-                        const image = await fetchQuery(api.files.getImage, {
-                          image: prompt.image,
-                        });
-                        if (image instanceof FileError) {
-                          return null;
-                        }
-                        return {
-                          type: "image" as const,
-                          image: image.url,
-                        };
-                      } else if (prompt.role === "file") {
-                        const file = await fetchQuery(api.files.getFile, {
-                          file: prompt.file,
-                        });
-                        if (file instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "file" as const,
-                          file: file.url,
-                          filename: file.filename,
-                          mimeType: file.mimeType,
-                        };
-                      }
-                    }),
-                  ),
-                },
-                {
-                  role: "assistant" as const,
-                  content: msg.response
-                    .map((resp) => {
-                      if (resp.role === "text") {
-                        return {
-                          type: "text" as const,
-                          text: resp.content,
-                        };
-                      }
-                    })
-                    .concat([
-                      {
-                        type: "reasoning" as const,
-                        text: msg.reasoning,
-                      },
-                    ]),
-                },
-              ];
-            }
-            return [
-              {
-                role: "user",
-                content: msg.prompt,
-              },
-              {
-                role: "assistant",
-                content: msg.response,
-              },
-            ];
-          })
-          .concat([
+        msgs.map(async (msg) => {
+          const userContent: (TextPart | ImagePart | FilePart)[] = (
+            await Promise.all(
+              msg.prompt.map(async (prompt) => {
+                if (prompt.role === "text") {
+                  return {
+                    type: "text",
+                    text: prompt.content,
+                  } satisfies TextPart;
+                }
+
+                if (prompt.role === "image") {
+                  const image = await fetchQuery(api.files.getImage, {
+                    image: prompt.image,
+                  });
+                  if (image instanceof FileError) return null;
+                  return {
+                    type: "image",
+                    image: image.url,
+                    mimeType: image.mimeType,
+                  } satisfies ImagePart;
+                }
+
+                if (prompt.role === "file") {
+                  const file = await fetchQuery(api.files.getFile, {
+                    file: prompt.file,
+                  });
+                  if (file instanceof Error) return null;
+                  return {
+                    type: "file",
+                    data: file.url,
+                    filename: file.filename,
+                    mimeType: file.mimeType,
+                  } satisfies FilePart;
+                }
+
+                return null;
+              }),
+            )
+          ).filter((part) => part !== null);
+
+          const assistantContent = [
+            ...msg.response
+              .map((resp) => {
+                if (resp.role === "text") {
+                  return {
+                    type: "text",
+                    text: resp.content,
+                  } satisfies TextPart;
+                }
+                return null;
+              })
+              .filter((m) => m !== null),
+
+            ...(msg.reasoning
+              ? [
+                  {
+                    type: "reasoning",
+                    text: msg.reasoning,
+                  } satisfies ReasoningPart,
+                ]
+              : []),
+          ];
+
+          return [
             {
               role: "user" as const,
-              content: [
-                {
-                  type: "text" as const,
-                  text: message,
-                },
-                ...(
-                  await Promise.all(
-                    files.map(async (data) => {
-                      if (data.__tableName === "images") {
-                        const image = await fetchQuery(api.files.getImage, {
-                          image: data,
-                        });
-                        if (image instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "image" as const,
-                          image: image.url,
-                        };
-                      } else {
-                        const file = await fetchQuery(api.files.getFile, {
-                          file: data,
-                        });
-                        if (file instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "file" as const,
-                          file: file.url,
-                          filename: file.filename,
-                          mimeType: file.mimeType,
-                        };
-                      }
-                    }),
-                  )
-                ).filter((file) => file !== null),
-              ],
+              content: userContent,
             },
-          ]),
+            {
+              role: "assistant" as const,
+              content: assistantContent,
+            },
+          ];
+        }),
       )
-    ).flat(),
+    )
+      .flat()
+      .concat([
+        {
+          role: "user" as const,
+          content: message,
+        },
+      ]),
     onFinish: async (event) => {
       console.log("[MESSAGE][STREAM][FINISH]", event);
       try {
-        await fetchMutation(api.messages.addMessage, {
+        const convexMsg = (
+          await Promise.all(
+            message.map(async (msg) => {
+              if (msg.type === "text") {
+                return {
+                  role: "text" as const,
+                  content: msg.text,
+                };
+              } else if (msg.type === "image") {
+                const image = await fetchMutation(api.files.createImage, {
+                  filename: msg.filename,
+                  mimeType: msg.mimeType,
+                  url: msg.image,
+                });
+                return {
+                  role: "image" as const,
+                  image: image,
+                } as {
+                  role: "image";
+                  image: Id<"images">;
+                };
+              } else if (msg.type === "file") {
+                const file = await fetchMutation(api.files.createFile, {
+                  filename: msg.filename,
+                  mimeType: msg.mimeType,
+                  url: msg.data,
+                });
+                return {
+                  role: "file" as const,
+                  file,
+                } as { role: "file"; file: Id<"files"> };
+              }
+            }),
+          )
+        ).filter((msg) => !!msg);
+        const msgId = await fetchMutation(api.messages.addMessage, {
           response: event.text,
           model: model,
           threadId: thread,
           embeddedThreadId: embeddedThread,
           userId,
-          message,
+          message: convexMsg,
           reasoning: event.reasoning,
-          files,
         });
+
+        if (msgId instanceof NoThread) {
+          return;
+        }
+
+        // phClient.capture({
+        //   event: "$ai-generation",
+        //   distinctId: msgId,
+        //   properties: {
+        //     "$ai_trace_id": thread,
+        //     "$ai_model": model,
+        //     "$ai_provider":
+        //   }
+        // })
       } catch (err) {
         console.error("[MESSAGE][MUTATION][ERROR]", err);
       }
@@ -247,13 +305,12 @@ export async function sendMessage(
 }
 
 export async function editMessage(
-  message: string,
+  message: msgType,
   msgId: Id<"messages">,
   thread: Id<"threads">,
   embeddedThread: Id<"embeddedThreads">,
   userId: Id<"users"> | "local",
   model: MODEL_IDS,
-  files: (Id<"files"> | Id<"images">)[],
 ) {
   const openRouter = await handleMessage(userId, model);
   if (openRouter.isErr()) {
@@ -276,11 +333,15 @@ export async function editMessage(
     { host: "https://eu.i.posthog.com" },
   );
 
+  // @ts-expect-error - fetch is not typed
+  const { ip } = (await fetch("/api/utils/ip")).json() as { ip: string };
+
   const result = streamText({
     model: withTracing(openRouter.value.chat(model), phClient, {
       posthogDistinctId: userId,
       posthogProperties: {
         embeddedThreadId: embeddedThread,
+        ip,
       },
     }),
     messages: (
@@ -291,120 +352,89 @@ export async function editMessage(
             msgs.findIndex((msg) => msg._id === msgId),
           )
           .map(async (msg) => {
-            if (msg.reasoning) {
-              return [
-                {
-                  role: "user" as const,
-                  content: await Promise.all(
-                    msg.prompt.map(async (prompt) => {
-                      if (prompt.role === "text") {
-                        return {
-                          type: "text" as const,
-                          text: prompt.content,
-                        };
-                      } else if (prompt.role === "image") {
-                        const image = await fetchQuery(api.files.getImage, {
-                          image: prompt.image,
-                        });
-                        if (image instanceof FileError) {
-                          return null;
-                        }
-                        return {
-                          type: "image" as const,
-                          image: image.url,
-                        };
-                      } else if (prompt.role === "file") {
-                        const file = await fetchQuery(api.files.getFile, {
-                          file: prompt.file,
-                        });
-                        if (file instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "file" as const,
-                          file: file.url,
-                          filename: file.filename,
-                          mimeType: file.mimeType,
-                        };
-                      }
-                    }),
-                  ),
-                },
-                {
-                  role: "assistant" as const,
-                  content: msg.response
-                    .map((resp) => {
-                      if (resp.role === "text") {
-                        return {
-                          type: "text" as const,
-                          text: resp.content,
-                        };
-                      }
-                    })
-                    .concat([
-                      {
-                        type: "reasoning" as const,
-                        text: msg.reasoning,
-                      },
-                    ]),
-                },
-              ];
-            }
+            const userContent: (TextPart | ImagePart | FilePart)[] = (
+              await Promise.all(
+                msg.prompt.map(async (prompt) => {
+                  if (prompt.role === "text") {
+                    return {
+                      type: "text",
+                      text: prompt.content,
+                    } satisfies TextPart;
+                  }
+
+                  if (prompt.role === "image") {
+                    const image = await fetchQuery(api.files.getImage, {
+                      image: prompt.image,
+                    });
+                    if (image instanceof FileError) return null;
+                    return {
+                      type: "image",
+                      image: image.url,
+                      mimeType: image.mimeType,
+                    } satisfies ImagePart;
+                  }
+
+                  if (prompt.role === "file") {
+                    const file = await fetchQuery(api.files.getFile, {
+                      file: prompt.file,
+                    });
+                    if (file instanceof Error) return null;
+                    return {
+                      type: "file",
+                      data: file.url,
+                      filename: file.filename,
+                      mimeType: file.mimeType,
+                    } satisfies FilePart;
+                  }
+
+                  return null;
+                }),
+              )
+            ).filter((part) => part !== null);
+
+            const assistantContent = [
+              ...msg.response
+                .map((resp) => {
+                  if (resp.role === "text") {
+                    return {
+                      type: "text",
+                      text: resp.content,
+                    } satisfies TextPart;
+                  }
+                  return null;
+                })
+                .filter((m) => m !== null),
+
+              ...(msg.reasoning
+                ? [
+                    {
+                      type: "reasoning",
+                      text: msg.reasoning,
+                    } satisfies ReasoningPart,
+                  ]
+                : []),
+            ];
+
             return [
               {
-                role: "user",
-                content: msg.prompt,
+                role: "user" as const,
+                content: userContent,
               },
               {
-                role: "assistant",
-                content: msg.response,
+                role: "assistant" as const,
+                content: assistantContent,
               },
             ];
-          })
-          .concat([
-            {
-              role: "user" as const,
-              content: [
-                {
-                  type: "text" as const,
-                  text: message,
-                },
-                ...(
-                  await Promise.all(
-                    files.map(async (data) => {
-                      if (data.__tableName === "images") {
-                        const image = await fetchQuery(api.files.getImage, {
-                          image: data,
-                        });
-                        if (image instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "image" as const,
-                          image: image.url,
-                        };
-                      } else {
-                        const file = await fetchQuery(api.files.getFile, {
-                          file: data,
-                        });
-                        if (file instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "file" as const,
-                          file: file.url,
-                          filename: file.filename,
-                          mimeType: file.mimeType,
-                        };
-                      }
-                    }),
-                  )
-                ).filter((file) => file !== null),
-              ],
-            },
-          ]),
+          }),
       )
-    ).flat(),
+    )
+      .flat()
+      .concat([
+        {
+          role: "user" as const,
+          content: message,
+        },
+      ]),
     onFinish: async (event) => {
       console.log("[MESSAGE][STREAM][FINISH]", event);
       try {
@@ -412,8 +442,47 @@ export async function editMessage(
           msgId,
           threadId: thread,
           embedThreadId: embeddedThread,
-          message,
-          files: [],
+          message: (
+            await Promise.all(
+              message.map(async (part) => {
+                if (part.type === "text") {
+                  return {
+                    role: "text",
+                    content: part.text,
+                  } as {
+                    role: "text";
+                    content: string;
+                  };
+                } else if (part.type === "image") {
+                  const imageId = await fetchMutation(api.files.createImage, {
+                    url: part.image,
+                    mimeType: part.mimeType,
+                    filename: part.filename,
+                  });
+                  return {
+                    role: "image",
+                    image: imageId,
+                  } as {
+                    role: "image";
+                    image: Id<"images">;
+                  };
+                } else if (part.type === "file") {
+                  const fileId = await fetchMutation(api.files.createFile, {
+                    url: part.data,
+                    mimeType: part.mimeType,
+                    filename: part.filename,
+                  });
+                  return {
+                    role: "file",
+                    file: fileId,
+                  } as {
+                    role: "file";
+                    file: Id<"files">;
+                  };
+                }
+              }),
+            )
+          ).filter((part) => part !== undefined),
           response: event.text,
           reasoning: event.reasoning,
           userId,
@@ -495,132 +564,100 @@ export async function regenMessage(
             0,
             embedThread.messages.findIndex((msg) => msg === msgId),
           )
-          .map(async (regen) => {
-            if (regen.thread === msg.thread) {
-              return [
-                {
-                  role: "user" as const,
-                  content: await Promise.all(
-                    regen.message.prompt.map(async (prompt) => {
-                      if (prompt.role === "text") {
-                        return {
-                          type: "text" as const,
-                          text: prompt.content,
-                        };
-                      } else if (prompt.role === "image") {
-                        const image = await fetchQuery(api.files.getImage, {
-                          image: prompt.image,
-                        });
-                        if (image instanceof FileError) {
-                          return null;
-                        }
-                        return {
-                          type: "image" as const,
-                          image: image.url,
-                        };
-                      } else if (prompt.role === "file") {
-                        const file = await fetchQuery(api.files.getFile, {
-                          file: prompt.file,
-                        });
-                        if (file instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "file" as const,
-                          file: file.url,
-                          filename: file.filename,
-                          mimeType: file.mimeType,
-                        };
-                      }
-                    }),
-                  ),
-                },
-                {
-                  role: "assistant" as const,
-                  content: regen.message.response
-                    .map((resp) => {
-                      if (resp.role === "text") {
-                        return {
-                          type: "text" as const,
-                          text: resp.content,
-                        };
-                      }
-                    })
-                    .concat([
-                      {
-                        type: "reasoning" as const,
-                        text: regen.message.reasoning,
-                      },
-                    ]),
-                },
-              ];
+          .map(async (msgId) => {
+            const msg = await fetchQuery(api.messages.getMessage, {
+              messageId: msgId,
+            });
+            if (!msg) {
+              return null;
             }
+            const userContent: (TextPart | ImagePart | FilePart)[] = (
+              await Promise.all(
+                msg.prompt.map(async (prompt) => {
+                  if (prompt.role === "text") {
+                    return {
+                      type: "text",
+                      text: prompt.content,
+                    } satisfies TextPart;
+                  }
+
+                  if (prompt.role === "image") {
+                    const image = await fetchQuery(api.files.getImage, {
+                      image: prompt.image,
+                    });
+                    if (image instanceof FileError) return null;
+                    return {
+                      type: "image",
+                      image: image.url,
+                      mimeType: image.mimeType,
+                    } satisfies ImagePart;
+                  }
+
+                  if (prompt.role === "file") {
+                    const file = await fetchQuery(api.files.getFile, {
+                      file: prompt.file,
+                    });
+                    if (file instanceof Error) return null;
+                    return {
+                      type: "file",
+                      data: file.url,
+                      filename: file.filename,
+                      mimeType: file.mimeType,
+                    } satisfies FilePart;
+                  }
+
+                  return null;
+                }),
+              )
+            ).filter((part) => part !== null);
+
+            const assistantContent = [
+              ...msg.response
+                .map((resp) => {
+                  if (resp.role === "text") {
+                    return {
+                      type: "text",
+                      text: resp.content,
+                    } satisfies TextPart;
+                  }
+                  return null;
+                })
+                .filter((m) => m !== null),
+
+              ...(msg.reasoning
+                ? [
+                    {
+                      type: "reasoning",
+                      text: msg.reasoning,
+                    } satisfies ReasoningPart,
+                  ]
+                : []),
+            ];
+
             return [
               {
-                role: "user",
-                content: regen.message.prompt,
+                role: "user" as const,
+                content: userContent,
               },
               {
-                role: "assistant",
-                content: regen.message.response,
+                role: "assistant" as const,
+                content: assistantContent,
               },
             ];
-          })
-          .concat([
-            {
-              role: "user" as const,
-              content: [
-                {
-                  type: "text" as const,
-                  text: msg.message,
-                },
-                ...(
-                  await Promise.all(
-                    msg.files.map(async (data) => {
-                      if (data.__tableName === "images") {
-                        const image = await fetchQuery(api.files.getImage, {
-                          image: data,
-                        });
-                        if (image instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "image" as const,
-                          image: image.url,
-                        };
-                      } else {
-                        const file = await fetchQuery(api.files.getFile, {
-                          file: data,
-                        });
-                        if (file instanceof Error) {
-                          return null;
-                        }
-                        return {
-                          type: "file" as const,
-                          file: file.url,
-                          filename: file.filename,
-                          mimeType: file.mimeType,
-                        };
-                      }
-                    }),
-                  )
-                ).filter((file) => file !== null),
-              ],
-            },
-          ]),
+          }),
       )
-    ).flat(),
+    )
+      .flat()
+      .filter((msg) => msg !== null),
     onFinish: async (event) => {
       console.log("[MESSAGE][STREAM][FINISH]", event);
       try {
         await fetchMutation(api.messages.regenMessage, {
           msgId,
           threadId: msg.thread,
-          embedThreadId: msg.embeddedThread,
-          message,
-          files: [],
           response: event.text,
           reasoning: event.reasoning,
+          embedThreadId: embeddedThread,
           userId,
           model,
         });

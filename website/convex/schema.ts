@@ -43,16 +43,37 @@ export default defineSchema({
     .index("thread", ["thread"])
     .index("threadAndSender", ["thread", "sender"]),
 
+  drafts: defineTable({
+    thread: v.id("threads"),
+    message: v.array(
+      v.union(
+        v.object({
+          role: v.literal("text"),
+          content: v.string(),
+        }),
+        v.object({ role: v.literal("image"), image: v.id("images") }),
+        v.object({ role: v.literal("file"), file: v.id("files") }),
+      ),
+    ),
+    model: v.string(),
+    user: v.union(v.id("users"), v.literal("local")),
+  })
+    .index("user", ["user"])
+    .index("thread", ["thread"])
+    .index("threadAndUser", ["thread", "user"]),
+
   images: defineTable({
     url: v.string(),
     mimeType: v.string(),
     filename: v.optional(v.string()),
   }),
+
   files: defineTable({
     url: v.string(),
     mimeType: v.string(),
     filename: v.string(),
   }),
+
   edits: defineTable({
     msgs: v.array(
       v.object({
@@ -111,6 +132,25 @@ export default defineSchema({
     canSee: v.array(v.id("threads")),
     canSend: v.array(v.id("threads")),
     email: v.string(),
+    friends: v.array(v.id("users")),
+    blocked: v.array(v.id("users")),
+    requestedFriend: v.array(v.id("users")),
+    requestingFriend: v.array(v.id("users")),
+
+    openRouterKey: v.optional(v.string()),
+    defaultModel: v.string(),
+    titleModel: v.string(),
+
+    memories: v.array(v.string()),
+    tools: v.record(v.string(), v.array(v.string())),
+    toolCredentials: v.object({
+      serpapi: v.optional(v.string()),
+      exa: v.optional(v.string()),
+      google: v.optional(v.string()),
+    }),
+    toolPreferences: v.object({
+      search: v.optional(v.array(v.union(v.literal("google"), v.literal("duckduckgo"), v.literal("serpapi"), v.literal("exa")))),
+    })
   })
     .index("id", ["id"])
     .index("email", ["email"]),

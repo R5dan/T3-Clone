@@ -12,6 +12,3 @@ export const LIMIT = {
     TOOLS: 1,
   },
 };
-
-
-export const TOOLS = ["image", "search"] as const;

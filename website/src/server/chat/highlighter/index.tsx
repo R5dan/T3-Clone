@@ -21,7 +21,6 @@ const Downloading = createLucideIcon("downloading", [
   ["path", { d: "m7 10 5 5 5-5", key: "brsn70" }],
 ]);
 
-
 function DownloadButton({
   text,
   filename,
@@ -62,8 +61,9 @@ function DownloadButton({
     return (
       <button
         onClick={() => handleDownload(text.split("\n"), filename, mimeType)}
+        className="hover:scale-110"
       >
-        <Download />
+        <Download className="h-5 w-5" />
       </button>
     );
   }
@@ -90,13 +90,13 @@ function Copy({ text }: { text: string }) {
         }}
         className="hover:scale-110"
       >
-        <Clipboard />
+        <Clipboard className="h-5 w-5" />
       </button>
     );
   } else if (state === "copying") {
     return (
       <button className="hover:scale-110">
-        <ClipboardCheck />
+        <ClipboardCheck className="h-5 w-5" />
       </button>
     );
   }
@@ -112,13 +112,13 @@ function WrapLines({
   if (wrap) {
     return (
       <button onClick={() => setWrap(false)} className="hover:scale-110">
-        <AlignLeft />
+        <AlignLeft className="h-5 w-5" />
       </button>
     );
   } else {
     return (
       <button onClick={() => setWrap(true)} className="hover:scale-110">
-        <WrapText />
+        <WrapText className="h-5 w-5" />
       </button>
     );
   }
@@ -143,12 +143,20 @@ export function Highlighter({
           const themeObj = theme === "dark" ? dark : light;
           const match = /language-(\w+)/.exec(className ?? "");
           const lang = match ? match[1]! : ("plaintext" as const);
-          console.log("STRING CHILDREN" + String(children).replace(/\n$/, ""));
           return !inline && match ? (
-            <div className="rounded-lg border-8 border-gray-900">
-              <div className="text-s center flex justify-between text-gray-500">
-                <span className="font-mono">{lang}</span>
-                <div>
+            <div
+              className="my-5 rounded-lg border-8 border-gray-900"
+              style={{ backgroundColor: "var(--color-gray-900)" }}
+            >
+              <div
+                className="text-s center flex justify-between rounded-t-md border-8 text-gray-500"
+                style={{
+                  borderColor: "#1f2938",
+                  backgroundColor: "#1f2938",
+                }}
+              >
+                <span className="my-auto text-center font-mono">{lang}</span>
+                <div className="flex justify-between gap-5">
                   <DownloadButton
                     text={String(children).replace(/\n$/, "")}
                     filename={"abc"}
@@ -159,8 +167,8 @@ export function Highlighter({
                 </div>
               </div>
               <div
-              // className="border-8"
-              // style={{ borderColor: themeObj.hljs.background }}
+                className="rounded-b-md border-8"
+                style={{ borderColor: themeObj.hljs.background }}
               >
                 <HLJS
                   style={themeObj}

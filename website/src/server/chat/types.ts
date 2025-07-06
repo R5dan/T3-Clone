@@ -64,8 +64,8 @@ export const MessageSendBodySchema = z.object({
       }),
     ]),
   ),
-  tools: z.record(z.string(), z.boolean()),
-  model: z.string().refine((val) => val in MODEL_IDS_VALUES),
+  tools: z.array(z.string()),
+  model: z.string().refine((val) => true),
 });
 
 export type MessageSendBody = {
@@ -79,6 +79,6 @@ export type MessageSendBody = {
     | { type: "image"; image: string; mimeType: string; filename: string }
     | { type: "file"; data: string; mimeType: string; filename: string }
   )[];
-  tools: Record<string, boolean>;
+  tools: string[];
   model: MODEL_IDS;
 };

@@ -252,6 +252,7 @@ export function Page({
           type: "text";
           text: string;
         });
+        setNewMessage({type: "text", text: inputMessage.trim()})
       }
       files.forEach((file) => {
         if (file.type.startsWith("image")) {
@@ -263,7 +264,8 @@ export function Page({
             type: "image";
             image: string;
             mimeType: string;
-          });
+            });
+          setNewMessage({type: "image", image: file.url, mimeType: file.type, filename: file.name})
         } else {
           prompt.push({
             type: "file",
@@ -275,7 +277,8 @@ export function Page({
             data: string;
             filename: string;
             mimeType: string;
-          });
+            });
+          setNewMessage({type: "file", data: file.url, mimeType: file.type, filename: file.name})
         }
       });
       setInputMessage("");
@@ -316,7 +319,7 @@ export function Page({
           threadId: usedThreadId as Id<"threads">,
           embeddedThreadId: usedEmbeddedThreadId as Id<"embeddedThreads">,
           message: prompt,
-          tools: { image: false, search: false },
+          tools,
           model,
         } satisfies MessageSendBody),
       });
@@ -340,9 +343,9 @@ export function Page({
         }
         const chunk = decoder.decode(value, { stream: true });
         if (chunk.startsWith("0:")) {
-          setNewMessage({ type: "response", response: chunk.slice(2) });
+          setNewMessage({ type: "response", response: chunk.slice(3, -2) });
         } else if (chunk.startsWith("g:")) {
-          setNewMessage({ type: "reasoning", reasoning: chunk.slice(2) });
+          setNewMessage({ type: "reasoning", reasoning: chunk.slice(3, -2) });
         }
       }
       setShowLatest(false);
@@ -399,9 +402,8 @@ export function Page({
             </div>
           )}
         </div>
-
         {/* Input Area */}
-        <div className="h-max bg-gradient-to-b from-white/100 to-white/0 dark:from-gray-800/100 dark:to-transparent">
+        <div className="h-max bg-gradient-to-b from-white/100 to-white/0 dark:from-gray-800/100 dark:to-transparent absolute bottom-0 w-full">
           <div className="relative bottom-0 h-auto max-h-[20%] w-[55%] min-w-[400px] self-center mx-auto border-t border-r border-l border-gray-200 px-6 py-2 dark:border-gray-700">
             <div className="mx-auto max-w-3xl">
               {/* Model Selector in Input Area */}

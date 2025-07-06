@@ -5,7 +5,8 @@ import {
   type MessageSendBody,
   MessageSendBodySchema,
 } from "~/server/chat/types";
-
+import { NextResponse } from "next/server";
+new NextResponse()
 export async function POST(req: Request) {
   console.log("POST: New message");
   const json = await req.json();
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
 
   console.log("CLEARED PARSING");
 
-  const msgRes = sendMessage(
+  const msgRes = await sendMessage(
     message,
     threadId,
     embeddedThreadId,

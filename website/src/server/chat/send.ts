@@ -282,6 +282,12 @@ export async function sendMessage(
     onError: async ({ error }) => {
       console.error("[MESSAGE][STREAM][ERROR]", error);
     },
+    onChunk: async (chunk) => {
+      if (chunk.type === "tool-call") {
+        console.log("STARTING TOOL STREAM");
+        console.log(chunk);
+      }
+    }
   });
   // const stream = new ReadableStream({
   //   async start(controller) {

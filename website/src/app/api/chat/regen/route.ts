@@ -2,7 +2,7 @@ import type { Id } from "../../../../../convex/_generated/dataModel";
 import { z } from "zod";
 import { regenMessage } from "~/server/chat/send";
 import type { MODEL_IDS } from "~/server/chat";
-
+import { useRouter } from "next/navigation";
 const SCHEMA = z.object({
   msgId: z.string(),
   userId: z.string(),

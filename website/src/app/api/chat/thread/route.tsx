@@ -1,17 +1,34 @@
 import { api } from "../../../../../convex/_generated/api";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
-import { workos } from "~/server/workos";
-import { DEFAULT_TITLE_MODEL, defaultMetadata } from "~/server/workos/defaults";
+import { DEFAULT_TITLE_MODEL } from "~/server/workos/defaults";
 import { z } from "zod";
 import { handleMessage } from "~/server/chat/send";
 import { streamObject } from "ai";
-import type { Doc, Id } from "convex/_generated/dataModel";
-import type { User } from "@workos-inc/node";
+import type { Doc } from "convex/_generated/dataModel";
 import type { MODEL_IDS } from "~/server/chat";
 
 const JSON = z.object({
   userId: z.string().optional(),
-  prompt: z.string(),
+  prompt: z.array(
+    z.union([
+      z.object({
+        type: z.literal("text"),
+        text: z.string(),
+      }),
+      z.object({
+        type: z.literal("image"),
+        image: z.string(),
+        mimeType: z.string(),
+        filename: z.string(),
+      }),
+      z.object({
+        type: z.literal("file"),
+        data: z.string(),
+        mimeType: z.string(),
+        filename: z.string(),
+      }),
+    ]),
+  ),
 });
 
 const SYSTEM_PROMPT =
@@ -53,7 +70,7 @@ export async function POST(req: Request) {
   console.log("OPENROUTER", openRouter);
   const threadId = await fetchMutation(api.thread.createThread, {
     name: "Unnamed Thread",
-    userId: (userId ?? "local") as Id<"users"> | "local",
+    userId: (convexUser?._id ?? "local"),
   });
   const thread = await fetchQuery(api.thread.getOptionalThread, { threadId });
   if (!thread || thread instanceof Error) {
@@ -64,7 +81,14 @@ export async function POST(req: Request) {
 
   streamObject({
     model: openRouter.chat(titleModel),
-    prompt: SYSTEM_PROMPT,
+    system: SYSTEM_PROMPT,
+    prompt: prompt
+      .map((part) => {
+        if (part.type === "text") {
+          return part.text;
+        }
+      })
+      .join(""),
     schema: z.object({
       title: z.string(),
     }),

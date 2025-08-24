@@ -7,7 +7,7 @@ import { api } from "../../../../../convex/_generated/api";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { ModelSelector } from "../../../chat/[threadId]/modelSelector";
+import { CompactModelSelector } from "~/components/ui/compact-model-selector";
 import type { MODEL_IDS } from "~/server/chat/types";
 import { useRouter } from "next/navigation";
 
@@ -115,10 +115,9 @@ export default function UserSettingsPage() {
         <Card className="mb-6 p-6">
           <h2 className="mb-2 text-lg font-semibold">Default Model</h2>
           <div>
-            <ModelSelector
+            <CompactModelSelector
               selectedModel={defaultModel ?? "openrouter/auto"}
               onModelSelect={setDefaultModel}
-              tab="favourites"
             />
           </div>
         </Card>

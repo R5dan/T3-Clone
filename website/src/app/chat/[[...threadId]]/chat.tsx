@@ -9,19 +9,18 @@ import {
   useCallback,
 } from "react";
 import { Thread } from "./thread";
-import { api } from "convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { type MODEL_IDS } from "~/server/chat";
 import { DEFAULT_MODEL } from "~/server/workos/defaults";
 import { useQuery } from "convex/react";
 import { useTheme } from "~/server/utils";
 import { FileInput, type FilePreviewLocal } from "~/server/uploadthing";
 import { CompactModelSelector } from "~/components/ui/compact-model-selector";
-import { Hammer, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import type { MessageSendBody } from "~/server/chat/types";
 import type { Id, Doc } from "../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { ThreadsContainer } from "./threadLink";
-import type { User } from "@workos-inc/node";
 import { ToolsSelector } from "~/components/ui/toolsSelector";
 
 export type State = {

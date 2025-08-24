@@ -1,9 +1,9 @@
 import { handleAuth } from "@workos-inc/authkit-nextjs";
 import { fetchMutation } from "convex/nextjs";
 import { workos } from "~/server/workos";
-import { DEFAULT_MODEL, defaultMetadata } from "~/server/workos/defaults";
+import { DEFAULT_MODEL, DEFAULT_TITLE_MODEL, defaultMetadata } from "~/server/workos/defaults";
 import { api } from "../../../../convex/_generated/api";
-import { DEFAULT_TITLE_MODEL } from "convex/utils";
+
 import type { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 

@@ -1,7 +1,7 @@
 import type { TOOL } from "./types";
 import Search from "./search";
-import { api } from "convex/_generated/api";
-import type { Doc, Id } from "convex/_generated/dataModel";
+import { api } from "../../../../convex/_generated/api";
+import type { Doc, Id } from "../../../../convex/_generated/dataModel";
 import Personal from "./personal";
 import { fetchQuery } from "convex/nextjs";
 
@@ -15,7 +15,7 @@ export const ALL_TOOLS: Record<string, TOOL> = {
 };
 
 function getLocalTools(tools: string[]) {
-  const toolsObj: Record<string, Tool> = {};
+  const toolsObj: Record<string, TOOL> = {};
   tools.forEach((tool) => {
     const toolCollection = LOCAL_TOOLS[tool];
     if (!toolCollection) {

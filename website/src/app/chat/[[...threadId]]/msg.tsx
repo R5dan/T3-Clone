@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { Highlighter } from "~/server/chat/highlighter";
 import { useTheme } from "~/server/utils";
 import { FilePreview, ImagePreview } from "~/server/chat/files";
@@ -10,7 +10,7 @@ import { CompactModelSelector } from "~/components/ui/compact-model-selector";
 import { MODELS } from "~/server/chat/models";
 import type { MODEL_IDS } from "~/server/chat/types";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { SquarePen, RefreshCw, Trash } from "lucide-react";
 
 type Props = {

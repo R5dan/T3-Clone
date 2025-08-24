@@ -14,6 +14,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { z } from "zod";
 import { useRef } from "react";
 import { Plus } from "lucide-react";
+import { FilePreview } from "../chat/files";
 
 export type FilePreview = {
   name: string;
@@ -28,6 +29,8 @@ export type FilePreviewLocal = {
   size: number;
   url: string;
 };
+
+type a = keyof FilePreviewLocal
 
 const f = createUploadthing();
 export const uploadRouter = {

@@ -4,7 +4,7 @@ import { DEFAULT_TITLE_MODEL } from "~/server/workos/defaults";
 import { z } from "zod";
 import { handleMessage } from "~/server/chat/send";
 import { streamObject } from "ai";
-import type { Doc } from "convex/_generated/dataModel";
+import type { Doc } from "../../../../../convex/_generated/dataModel";
 import type { MODEL_IDS } from "~/server/chat";
 
 const JSON = z.object({

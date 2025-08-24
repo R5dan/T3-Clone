@@ -18,7 +18,7 @@ import { FileInput, type FilePreviewLocal } from "~/server/uploadthing";
 import { CompactModelSelector } from "~/components/ui/compact-model-selector";
 import { Hammer, Send } from "lucide-react";
 import type { MessageSendBody } from "~/server/chat/types";
-import type { Id, Doc } from "convex/_generated/dataModel";
+import type { Id, Doc } from "../../../../convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
 import { ThreadsContainer } from "./threadLink";
 import type { User } from "@workos-inc/node";

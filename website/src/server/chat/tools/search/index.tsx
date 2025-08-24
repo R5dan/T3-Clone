@@ -1,4 +1,4 @@
-import type { Doc } from "convex/_generated/dataModel";
+import type { Doc } from "../../../../../convex/_generated/dataModel";
 import { Search } from "lucide-react";
 
 import { TOOL as SearchTool } from "./search";
